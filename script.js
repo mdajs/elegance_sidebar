@@ -962,12 +962,6 @@ async function renderUpcomingEvents(registeredMatches) {
   const list = document.getElementById('events-list');
   list.innerHTML = '';
 
-  let manual = [];
-  try {
-    const resp = await fetch('data/events.json');
-    if (resp.ok) manual = await resp.json();
-  } catch { /* optional file */ }
-
   const matchEvents = registeredMatches
     .filter((m) => m.start_time || m.name)
     .map((m) => ({
@@ -978,7 +972,7 @@ async function renderUpcomingEvents(registeredMatches) {
       source:     'api',
     }));
 
-  const all = [...matchEvents, ...manual].sort((a, b) => {
+  const all = matchEvents.sort((a, b) => {
     if (a.start_time && b.start_time) return a.start_time - b.start_time;
     if (a.start_time) return -1;
     if (b.start_time) return  1;
