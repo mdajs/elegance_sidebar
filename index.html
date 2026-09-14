@@ -24,7 +24,12 @@
           <div class="club-icon-fallback" id="club-icon-fallback" aria-hidden="true">♛</div>
         </div>
         <div class="club-meta">
-          <div class="club-crown" aria-hidden="true">♛ &nbsp;ELEGANCE</div>
+          <div class="club-crown-row">
+            <div class="club-crown" aria-hidden="true">♛ &nbsp;ELEGANCE</div>
+            <div class="club-pulse" id="club-pulse">
+              <span class="pulse-dot"></span><span class="pulse-text" id="pulse-text">Active Today</span>
+            </div>
+          </div>
           <h1 class="club-name" id="club-name">
             <span class="skeleton-inline skeleton">Loading…</span>
           </h1>
@@ -64,6 +69,32 @@
             <div class="skeleton-inline skeleton" style="width:70px;height:12px"></div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════ THE ELITE ROSTER ══ -->
+    <section class="sidebar-section" id="section-roster">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">The Elite Roster</h2>
+      </div>
+      <ul class="elite-list" id="elite-list" aria-label="Top active players by rating">
+        <li class="skeleton-block skeleton" style="height:48px;border-radius:8px;margin-bottom:6px"></li>
+        <li class="skeleton-block skeleton" style="height:48px;border-radius:8px;margin-bottom:6px"></li>
+        <li class="skeleton-block skeleton" style="height:48px;border-radius:8px"></li>
+      </ul>
+    </section>
+
+    <!-- ════════════════════════════════════════ HALL OF FAME ══ -->
+    <section class="sidebar-section" id="section-hof">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">Hall of Fame</h2>
+        <span class="section-tag">Titled Members</span>
+      </div>
+      <div class="hof-grid" id="hof-grid" aria-live="polite">
+        <div class="skeleton-block skeleton" style="height:40px;border-radius:20px;width:100px"></div>
+        <div class="skeleton-block skeleton" style="height:40px;border-radius:20px;width:90px"></div>
       </div>
     </section>
 
@@ -112,16 +143,20 @@
       </ul>
     </section>
 
-    <!-- ══════════════════════════════════ DAILY PUZZLE ═════ -->
-    <section class="sidebar-section sidebar-section--puzzle" id="section-puzzle">
+    <!-- ════════════════════════════════ WEEKLY MASTERCLASS ════ -->
+    <section class="sidebar-section sidebar-section--puzzle" id="section-masterclass">
       <div class="section-header">
         <span class="section-icon" aria-hidden="true">♞</span>
-        <h2 class="section-title">Daily Puzzle</h2>
-        <span class="section-tag">A moment of quiet calculation</span>
+        <h2 class="section-title">Weekly Masterclass</h2>
+        <span class="section-tag" id="masterclass-tag">Brilliant Tactics</span>
       </div>
-      <div class="puzzle-card" id="puzzle-card" aria-live="polite">
-        <div class="skeleton-block skeleton" style="height:130px;border-radius:8px;margin-bottom:10px"></div>
-        <div class="skeleton-block skeleton" style="height:32px;border-radius:4px;width:60%"></div>
+      <div class="gotm-card" id="masterclass-card" aria-live="polite">
+        <div class="gotm-board-wrap">
+          <div id="masterclass-board">
+            <div class="skeleton-block skeleton" style="height:100%;border-radius:8px"></div>
+          </div>
+        </div>
+        <p class="gotm-blurb" id="masterclass-blurb" style="margin-top:14px;margin-bottom:0">Loading masterclass...</p>
       </div>
     </section>
 

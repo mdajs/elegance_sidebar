@@ -293,8 +293,8 @@ function getMonthlyData() {
  * Results are cached for 6 hours under key `monthly:{MONTH_KEY}`.
  */
 async function computeMonthlyData() {
-  // Return cached monthly result if available (v2 forces cache bypass for the move-count fix)
-  const cacheKey = `monthly:v2:${MONTH_KEY}`;
+  // Return cached monthly result if available (v3 forces cache bypass for GOTM formula change)
+  const cacheKey = `monthly:v3:${MONTH_KEY}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
@@ -317,10 +317,45 @@ async function computeMonthlyData() {
     })
     .slice(0, CONFIG.MAX_CANDIDATES);
 
-  // ── 2. Fetch game archives (serial, rate-limit safe) ──────────────
-  const memberStats = []; // { username, wins, losses, draws, games[] }
+  // ── 2. Fetch profiles, stats, and archives (serial, rate-limit safe) ──────────────
+  const activeProfiles = [];
+  const memberStats = []; 
 
   for (const member of candidates) {
+    // A. Profile
+    await sleep(CONFIG.ENRICH_DELAY_MS);
+    let player = null, stats = null;
+    try {
+      player = await apiFetch(`${CONFIG.API_BASE}/player/${member.username}`, `player:${member.username}`, CONFIG.TTL.PLAYER);
+    } catch { continue; } // skip if error
+
+    // B. Stats
+    await sleep(CONFIG.ENRICH_DELAY_MS);
+    try {
+      stats = await apiFetch(`${CONFIG.API_BASE}/player/${member.username}/stats`, `stats:${member.username}`, CONFIG.TTL.STATS);
+    } catch { /* silent */ }
+
+    let rating = 0, format = 'Rapid';
+    if (stats) {
+      const rapid  = stats.chess_rapid?.last?.rating  || 0;
+      const blitz  = stats.chess_blitz?.last?.rating  || 0;
+      const bullet = stats.chess_bullet?.last?.rating || 0;
+      if (rapid >= blitz && rapid >= bullet) { rating = rapid; format = 'Rapid'; }
+      else if (blitz >= bullet)             { rating = blitz; format = 'Blitz'; }
+      else                                  { rating = bullet; format = 'Bullet'; }
+    }
+
+    activeProfiles.push({
+      username: player.username,
+      avatar: player.avatar || null,
+      title: player.title || null,
+      country: player.country || null,
+      url: player.url,
+      rating,
+      format
+    });
+
+    // C. Archives
     await sleep(CONFIG.ENRICH_DELAY_MS);
     try {
       const archiveData = await apiFetch(
@@ -330,36 +365,28 @@ async function computeMonthlyData() {
       );
 
       const allGames = archiveData.games || [];
-      // Filter to rated rapid + blitz only (most meaningful for a leaderboard)
-      const games = allGames.filter(
-        (g) => g.rated && (g.time_class === 'rapid' || g.time_class === 'blitz')
-      );
+      const games = allGames.filter((g) => g.rated && (g.time_class === 'rapid' || g.time_class === 'blitz'));
 
       let wins = 0, losses = 0, draws = 0;
-
       for (const game of games) {
         const isWhite = game.white?.username?.toLowerCase() === member.username.toLowerCase();
-        const resultCode = isWhite ? game.white?.result : game.black?.result;
-        const r = classifyResult(resultCode);
+        const r = classifyResult(isWhite ? game.white?.result : game.black?.result);
         if (r === 'win')       wins++;
         else if (r === 'loss') losses++;
         else                   draws++;
       }
 
       const totalGames = wins + losses + draws;
-      if (totalGames < CONFIG.MIN_GAMES) continue;
-
-      memberStats.push({ username: member.username, wins, losses, draws, totalGames, games });
-    } catch {
-      // Member has no archive or API error — skip silently
-    }
+      if (totalGames >= CONFIG.MIN_GAMES) {
+        memberStats.push({ username: member.username, wins, losses, draws, totalGames, games });
+      }
+    } catch { /* silent */ }
   }
 
   // ── 3. Compute POTM ───────────────────────────────────────────────
   let potm = null;
 
   if (memberStats.length > 0) {
-    // Score = wins×3 + draws - losses×0.5, tiebreak by win %
     const ranked = [...memberStats].sort((a, b) => {
       const scoreA = a.wins * 3 + a.draws - a.losses * 0.5;
       const scoreB = b.wins * 3 + b.draws - b.losses * 0.5;
@@ -370,36 +397,7 @@ async function computeMonthlyData() {
     });
 
     const winner = ranked[0];
-
-    // Fetch winner's profile + stats for rating and avatar
-    let avatar  = null;
-    let rating  = null;
-    let format  = 'Rapid';
-
-    try {
-      await sleep(CONFIG.ENRICH_DELAY_MS);
-      const player = await apiFetch(
-        `${CONFIG.API_BASE}/player/${winner.username}`,
-        `player:${winner.username}`,
-        CONFIG.TTL.PLAYER
-      );
-      avatar = player.avatar || null;
-    } catch { /* silent */ }
-
-    try {
-      await sleep(CONFIG.ENRICH_DELAY_MS);
-      const stats = await apiFetch(
-        `${CONFIG.API_BASE}/player/${winner.username}/stats`,
-        `stats:${winner.username}`,
-        CONFIG.TTL.STATS
-      );
-      const rapid  = stats?.chess_rapid?.last?.rating  || 0;
-      const blitz  = stats?.chess_blitz?.last?.rating  || 0;
-      const bullet = stats?.chess_bullet?.last?.rating || 0;
-      if (rapid >= blitz && rapid >= bullet) { rating = rapid; format = 'Rapid'; }
-      else if (blitz >= bullet)             { rating = blitz; format = 'Blitz'; }
-      else                                  { rating = bullet; format = 'Bullet'; }
-    } catch { /* silent */ }
+    const winnerProfile = activeProfiles.find(p => p.username.toLowerCase() === winner.username.toLowerCase()) || {};
 
     potm = {
       username:   winner.username,
@@ -407,10 +405,10 @@ async function computeMonthlyData() {
       losses:     winner.losses,
       draws:      winner.draws,
       totalGames: winner.totalGames,
-      rating,
-      format,
-      avatar,
-      month: MONTH_LABEL,
+      rating:     winnerProfile.rating,
+      format:     winnerProfile.format,
+      avatar:     winnerProfile.avatar,
+      month:      MONTH_LABEL,
     };
   }
 
@@ -437,8 +435,8 @@ async function computeMonthlyData() {
 
       // Composite score (higher = more interesting game)
       let score = 0;
-      if (myAccuracy != null) score += myAccuracy * 2.0; // 0–200
-      score += Math.max(0, ratingDiff) * 0.8;             // upset bonus
+      if (myAccuracy != null) score += myAccuracy * 4.0; // 0–400 (accuracy is king)
+      score += Math.max(0, ratingDiff) * 0.5;             // smaller upset bonus
       score += Math.min(moveCount, 60) * 0.5;             // length bonus
 
       if (score > bestScore) {
@@ -465,7 +463,7 @@ async function computeMonthlyData() {
     }
   }
 
-  const result = { potm, gotm, memberStats };
+  const result = { potm, gotm, activeProfiles };
   cache.set(cacheKey, result, CONFIG.TTL.MONTHLY);
   return result;
 }
@@ -731,7 +729,126 @@ function renderGotmCard(card, gotm) {
     </a>
   `;
 
-  renderChessBoard(gotm.fen, '');
+  renderChessBoard(gotm.fen, '', 'gotm-board');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  THE ELITE ROSTER (Top 3)
+// ═══════════════════════════════════════════════════════════════════
+async function loadEliteRoster() {
+  const list = document.getElementById('elite-list');
+  try {
+    const { activeProfiles } = await getMonthlyData();
+    const sorted = [...activeProfiles]
+      .filter(p => p.rating > 0)
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 3);
+
+    if (!sorted.length) {
+      list.innerHTML = `<li class="empty-state">No ratings found yet.</li>`;
+      return;
+    }
+
+    list.innerHTML = '';
+    sorted.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.className = 'elite-item';
+      li.setAttribute('data-rank', i + 1);
+      li.style.animationDelay = `${i * 0.08}s`;
+
+      const avatarHtml = p.avatar
+        ? `<img class="elite-avatar" src="${escHtml(p.avatar)}" alt="${escHtml(p.username)}">`
+        : `<div class="member-avatar-placeholder" style="width:32px;height:32px;font-size:12px;border:1px solid var(--gold-dim)">${escHtml(p.username.charAt(0).toUpperCase())}</div>`;
+      
+      const titleStr = p.title ? `<span class="member-title" style="margin-right:4px">${escHtml(p.title)}</span>` : '';
+
+      li.innerHTML = `
+        <div class="elite-rank">#${i + 1}</div>
+        ${avatarHtml}
+        <div class="elite-info">
+          <div class="elite-name">${titleStr}${escHtml(p.username)}</div>
+        </div>
+        <div class="elite-rating">${Number(p.rating).toLocaleString()}</div>
+      `;
+      list.appendChild(li);
+    });
+  } catch {
+    list.innerHTML = `<li class="empty-state">Elite roster unavailable.</li>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HALL OF FAME (Titled Members)
+// ═══════════════════════════════════════════════════════════════════
+async function loadHallOfFame() {
+  const grid = document.getElementById('hof-grid');
+  try {
+    const { activeProfiles } = await getMonthlyData();
+    const titled = activeProfiles.filter(p => p.title).sort((a, b) => b.rating - a.rating);
+
+    if (!titled.length) {
+      grid.innerHTML = `<div class="empty-state" style="width:100%">No titled members active this month.</div>`;
+      return;
+    }
+
+    grid.innerHTML = '';
+    titled.forEach((p, i) => {
+      const a = document.createElement('a');
+      a.className = 'hof-item';
+      a.href = p.url || '#';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.animation = `fadeSlideUp var(--t-base) var(--ease) ${i * 0.06}s both`;
+      
+      const avatarHtml = p.avatar
+        ? `<img class="hof-avatar" src="${escHtml(p.avatar)}" alt="${escHtml(p.username)}">`
+        : `<div class="member-avatar-placeholder" style="width:24px;height:24px;font-size:10px;border:none">♛</div>`;
+      
+      a.innerHTML = `
+        ${avatarHtml}
+        <span class="hof-title">${escHtml(p.title)}</span>
+        <span class="hof-name">${escHtml(p.username)}</span>
+      `;
+      grid.appendChild(a);
+    });
+  } catch {
+    grid.innerHTML = `<div class="empty-state" style="width:100%">Hall of Fame unavailable.</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ACTIVE CLUB PULSE
+// ═══════════════════════════════════════════════════════════════════
+async function loadActivePulse() {
+  const pulseNode = document.getElementById('club-pulse');
+  const textNode  = document.getElementById('pulse-text');
+  if (!pulseNode || !textNode) return;
+  try {
+    const { activeProfiles } = await getMonthlyData();
+    const top5 = activeProfiles.slice(0, 5);
+    
+    let isLive = false;
+    for (const p of top5) {
+      await sleep(CONFIG.ENRICH_DELAY_MS);
+      try {
+        const res = await apiFetch(`${CONFIG.API_BASE}/player/${p.username}/is-online`);
+        if (res && res.online) {
+          isLive = true;
+          break;
+        }
+      } catch { /* skip error */ }
+    }
+    
+    if (isLive) {
+      pulseNode.classList.add('is-live');
+      textNode.textContent = 'Members Playing';
+    } else {
+      pulseNode.classList.remove('is-live');
+      textNode.textContent = 'Active Today';
+    }
+  } catch {
+    textNode.textContent = 'Active Today';
+  }
 }
 
 // ── SVG CHESS BOARD RENDERER (no external deps) ─────────────────
@@ -740,8 +857,8 @@ const PIECE_GLYPHS = {
   k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟',
 };
 
-function renderChessBoard(fen, pgn) {
-  const container = document.getElementById('gotm-board');
+function renderChessBoard(fen, pgn, targetId = 'gotm-board') {
+  const container = document.getElementById(targetId);
   if (!container) return;
 
   let position = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
@@ -1034,40 +1151,30 @@ async function renderUpcomingEvents(registeredMatches) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  SECTION 8 — DAILY PUZZLE
+//  WEEKLY MASTERCLASS (replaces Daily Puzzle)
 // ═══════════════════════════════════════════════════════════════════
-async function loadPuzzle() {
-  const card = document.getElementById('puzzle-card');
-  try {
-    const puzzle = await apiFetch(
-      `${CONFIG.API_BASE}/puzzle`,
-      'puzzle:daily',
-      CONFIG.TTL.PUZZLE
-    );
+const TACTICS = [
+  { fen: '1k1r4/pp1b1R2/3q2pp/4p3/2B5/4Q3/PPP2B2/2K5 b - - 0 1', pgn: '', blurb: 'Kasparov vs. Topalov, Wijk aan Zee (1999). An incredible combination ending in a brilliant mating net.' },
+  { fen: '4r1k1/1p3p1p/p2p2p1/3P4/2PB1P2/1P1n1qP1/P1Q4P/1R4K1 w - - 0 1', pgn: '', blurb: 'Fischer vs. Myagmarsuren (1967). Fischer relentlessly attacks on the kingside.' },
+  { fen: 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1', pgn: '', blurb: 'The Italian Game: a fundamental tactical battleground favored by the romantics.' },
+  { fen: 'r2q1rk1/1pp1bppp/p1npbn2/4p3/B3P3/2PP1N2/PP1N1PPP/R1BQR1K1 w - - 0 1', pgn: '', blurb: 'Ruy Lopez structure. Understanding these positional nuances is key to mastery.' },
+  { fen: '8/p3p3/1p1k4/3p4/8/P7/1PP5/1K6 w - - 0 1', pgn: '', blurb: 'A delicate pawn endgame. Precision here separates masters from amateurs.' },
+];
 
-    card.innerHTML = `
-      ${puzzle.image ? `
-        <a href="${escHtml(puzzle.url || 'https://www.chess.com/puzzles')}" target="_blank" rel="noopener noreferrer" id="puzzle-img-link">
-          <img class="puzzle-image" src="${escHtml(puzzle.image)}" alt="${escHtml(puzzle.title || 'Daily chess puzzle')}" loading="lazy">
-        </a>
-      ` : ''}
-      ${puzzle.title ? `<div class="puzzle-title">${escHtml(puzzle.title)}</div>` : ''}
-      <p class="puzzle-sub">Study the position, then solve on Chess.com.</p>
-      <a class="puzzle-link"
-         href="${escHtml(puzzle.url || 'https://www.chess.com/puzzles')}"
-         target="_blank" rel="noopener noreferrer"
-         id="puzzle-solve-link">
-        ▶ &nbsp;Solve Today's Puzzle
-      </a>
-    `;
-  } catch {
-    card.innerHTML = `
-      <p class="puzzle-sub" style="font-style:italic;color:var(--ivory-faint)">Today's puzzle could not be loaded.</p>
-      <a class="puzzle-link" href="https://www.chess.com/puzzles" target="_blank" rel="noopener noreferrer" id="puzzle-fallback-link">
-        ▶ &nbsp;Browse Puzzles
-      </a>
-    `;
-  }
+async function loadMasterclass() {
+  const blurbNode = document.getElementById('masterclass-blurb');
+  if (!blurbNode) return;
+  
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const diff = now - start;
+  const oneWeek = 1000 * 60 * 60 * 24 * 7;
+  const weekNum = Math.floor(diff / oneWeek);
+  
+  const tactic = TACTICS[weekNum % TACTICS.length];
+  blurbNode.textContent = `"${tactic.blurb}"`;
+  
+  renderChessBoard(tactic.fen, tactic.pgn, 'masterclass-board');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1093,11 +1200,14 @@ async function init() {
   }
 
   await Promise.allSettled([
+    loadActivePulse(),
     loadJoiners(),
     loadPlayerOfMonth(),
     loadGameOfMonth(),
+    loadEliteRoster(),
+    loadHallOfFame(),
     loadMatches(),
-    loadPuzzle(),
+    loadMasterclass(),
   ]);
 
   updateFooter();

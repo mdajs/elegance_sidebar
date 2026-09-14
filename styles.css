@@ -88,13 +88,17 @@ body {
 .sidebar {
   width: 360px;
   min-height: 100vh;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
+  background-color: var(--bg);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
+  color: var(--color-text);
+  font-family: var(--font-body);
   border-right: 1px solid var(--color-border-sub);
   border-left: 1px solid var(--color-border-sub);
+  display: flex;
+  flex-direction: column;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -196,6 +200,13 @@ body {
   z-index: 1;
 }
 
+.club-crown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
 .club-crown {
   font-family: var(--font-body);
   font-size: 9.5px;
@@ -203,7 +214,36 @@ body {
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--gold);
-  margin-bottom: 3px;
+}
+
+.club-pulse {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.club-pulse.is-live {
+  color: var(--online);
+}
+.pulse-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-muted);
+}
+.club-pulse.is-live .pulse-dot {
+  background: var(--online);
+  box-shadow: 0 0 0 2px var(--online-faint);
+  animation: pulse-glow 2s infinite;
+}
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 0 0px var(--online-faint); }
+  50% { box-shadow: 0 0 0 4px var(--online-faint); }
+  100% { box-shadow: 0 0 0 0px var(--online-faint); }
 }
 
 .club-name {
@@ -285,7 +325,31 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(201, 169, 89, 0.15); /* faint gold line */
+  position: relative;
+  overflow: hidden;
+}
+
+.section-header::after {
+  content: '';
+  position: absolute;
+  top: 0; 
+  left: -100%; 
+  width: 50%; 
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(201, 169, 89, 0.15), transparent);
+  transform: skewX(-20deg);
+  transition: none;
+}
+
+.section-header:hover::after {
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  100% { left: 200%; }
 }
 
 .section-icon {
@@ -418,6 +482,123 @@ body {
   line-height: 1;
   flex-shrink: 0;
   margin-left: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THE ELITE ROSTER (Top 3)
+═══════════════════════════════════════════════════════════════════ */
+.elite-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.elite-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  border: 1px solid var(--color-border-sub);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Gold glow for Rank 1 */
+.elite-item[data-rank="1"] {
+  background: linear-gradient(135deg, rgba(201, 169, 89, 0.08) 0%, var(--surface) 100%);
+  border-color: rgba(201, 169, 89, 0.3);
+}
+
+.elite-rank {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold-dim);
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.elite-item[data-rank="1"] .elite-rank { color: var(--gold); }
+
+.elite-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--gold-dim);
+}
+
+.elite-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.elite-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ivory);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elite-rating {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HALL OF FAME (Titled Members)
+═══════════════════════════════════════════════════════════════════ */
+.hof-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hof-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  background: var(--surface);
+  border-radius: 20px;
+  border: 1px solid var(--color-border-sub);
+  text-decoration: none;
+  transition: background var(--t-fast);
+}
+
+.hof-item:hover {
+  background: var(--surface-2);
+  border-color: var(--gold-line);
+}
+
+.hof-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.hof-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--gold);
+  background: var(--gold-faint);
+  padding: 1px 4px;
+  border-radius: var(--r-xs);
+  letter-spacing: 0.05em;
+}
+
+.hof-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ivory);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
