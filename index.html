@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>♛ Elegance Chess Club</title>
+  <meta name="description" content="Live sidebar for the Elegance Chess Club on Chess.com — new joiners, player of the month, game of the month, daily matches &amp; more.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♛</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <aside class="sidebar" id="elegance-sidebar" role="complementary" aria-label="Elegance Chess Club sidebar">
+
+    <!-- ═══════════════════════════════════════════ HEADER ══ -->
+    <header class="sidebar-header" id="section-header">
+      <div class="header-bg-motif" aria-hidden="true"></div>
+      <div class="header-inner">
+        <div class="club-icon-wrap">
+          <img class="club-icon" id="club-icon" src="" alt="Elegance Chess Club icon">
+          <div class="club-icon-fallback" id="club-icon-fallback" aria-hidden="true">♛</div>
+        </div>
+        <div class="club-meta">
+          <div class="club-crown" aria-hidden="true">♛ &nbsp;ELEGANCE</div>
+          <h1 class="club-name" id="club-name">
+            <span class="skeleton-inline skeleton">Loading…</span>
+          </h1>
+          <p class="club-sub" id="club-sub">
+            <span class="skeleton-inline skeleton" style="width:140px;height:11px"></span>
+          </p>
+        </div>
+      </div>
+      <p class="club-desc" id="club-desc"></p>
+      <a class="club-link" id="club-link" href="https://www.chess.com/club/elegance" target="_blank" rel="noopener noreferrer">
+        View Club on Chess.com <span aria-hidden="true">→</span>
+      </a>
+    </header>
+
+    <!-- ══════════════════════════════════ NEW TO THE CLUB ══ -->
+    <section class="sidebar-section" id="section-joiners">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">New to the Club</h2>
+      </div>
+      <ul class="member-list" id="joiners-list" aria-label="Recently joined members">
+        <!-- skeleton rows injected by JS -->
+      </ul>
+    </section>
+
+    <!-- ══════════════════════════════ PLAYER OF THE MONTH ══ -->
+    <section class="sidebar-section" id="section-potm">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">Player of the Month</h2>
+      </div>
+      <div class="potm-card" id="potm-card" aria-live="polite">
+        <div class="potm-loading">
+          <div class="potm-avatar-placeholder skeleton" aria-hidden="true"></div>
+          <div class="potm-info">
+            <div class="skeleton-inline skeleton" style="width:100px;height:16px;margin-bottom:8px"></div>
+            <div class="skeleton-inline skeleton" style="width:70px;height:12px"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════ GAME OF THE MONTH ════ -->
+    <section class="sidebar-section" id="section-gotm">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">This Month's Finest Game</h2>
+      </div>
+      <div class="gotm-card" id="gotm-card" aria-live="polite">
+        <div class="skeleton-block skeleton" style="height:200px;border-radius:8px"></div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════ VOTE CHESS ══ -->
+    <section class="sidebar-section" id="section-vote">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">Vote Chess</h2>
+      </div>
+      <div id="vote-list" aria-live="polite">
+        <div class="skeleton-block skeleton" style="height:56px;border-radius:8px;margin-bottom:8px"></div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════ DAILY MATCHES ════ -->
+    <section class="sidebar-section" id="section-matches">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">Daily Matches</h2>
+      </div>
+      <div id="matches-list" aria-live="polite">
+        <div class="skeleton-block skeleton" style="height:80px;border-radius:8px"></div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════ UPCOMING EVENTS ══════ -->
+    <section class="sidebar-section" id="section-events">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">✦</span>
+        <h2 class="section-title">Upcoming Events</h2>
+      </div>
+      <ul class="events-list" id="events-list" aria-label="Upcoming club events" aria-live="polite">
+        <li class="skeleton-block skeleton" style="height:64px;border-radius:8px;list-style:none"></li>
+        <li class="skeleton-block skeleton" style="height:64px;border-radius:8px;list-style:none;margin-top:8px"></li>
+      </ul>
+    </section>
+
+    <!-- ══════════════════════════════════ DAILY PUZZLE ═════ -->
+    <section class="sidebar-section sidebar-section--puzzle" id="section-puzzle">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">♞</span>
+        <h2 class="section-title">Daily Puzzle</h2>
+        <span class="section-tag">A moment of quiet calculation</span>
+      </div>
+      <div class="puzzle-card" id="puzzle-card" aria-live="polite">
+        <div class="skeleton-block skeleton" style="height:130px;border-radius:8px;margin-bottom:10px"></div>
+        <div class="skeleton-block skeleton" style="height:32px;border-radius:4px;width:60%"></div>
+      </div>
+    </section>
+
+    <!-- ═════════════════════════════════════════ FOOTER ════ -->
+    <footer class="sidebar-footer">
+      <span>Data via <a href="https://www.chess.com/news/view/published-data-api" target="_blank" rel="noopener noreferrer">Chess.com PubAPI</a></span>
+      <span class="footer-refresh" id="footer-refresh" aria-live="polite">Refreshing…</span>
+    </footer>
+
+  </aside>
+
+  <!-- chess.js: PGN/FEN parser (standalone, no jQuery) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
