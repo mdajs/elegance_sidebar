@@ -1040,11 +1040,12 @@ function renderChessBoard(fen, pgn, targetId = 'gotm-board') {
 // ═══════════════════════════════════════════════════════════════════
 //  SECTIONS 5 + 6 + 7 — MATCHES (Vote + Daily + Upcoming)
 // ═══════════════════════════════════════════════════════════════════
-async function loadMatches() {
+async function loadMatches(bypassCache = false) {
   const data = await apiFetch(
     `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/matches`,
     'club:matches',
-    CONFIG.TTL.MATCHES
+    CONFIG.TTL.MATCHES,
+    bypassCache
   );
 
   const inProgress = data.in_progress || [];
@@ -1300,14 +1301,16 @@ async function triggerManualRefresh() {
   try { 
     localStorage.removeItem('elegance:club:members'); 
     localStorage.removeItem('elegance:club:profile');
+    localStorage.removeItem('elegance:club:matches');
   } catch {}
   
   await Promise.allSettled([
     loadHeader(true),
-    loadActivePulse(),
+    loadActivePulse(true),
     loadJoiners(true, true),
-    loadEliteRoster(),
-    loadMatches(),
+    loadEliteRoster(true),
+    loadHallOfFame(true),
+    loadMatches(true),
   ]);
   
   updateFooter();
@@ -1321,6 +1324,7 @@ async function init() {
   try { 
     localStorage.removeItem('elegance:club:members');
     localStorage.removeItem('elegance:club:profile');
+    localStorage.removeItem('elegance:club:matches');
   } catch {}
 
   const footerEl = document.getElementById('footer-refresh');
@@ -1363,7 +1367,7 @@ async function init() {
     await Promise.allSettled([
       loadEliteRoster(true),
       loadHallOfFame(true),
-      loadMatches(),
+      loadMatches(true),
     ]);
     updateFooter();
   }, 60 * 1000);
