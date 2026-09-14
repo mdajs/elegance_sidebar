@@ -1154,15 +1154,16 @@ async function renderUpcomingEvents(registeredMatches) {
 //  WEEKLY MASTERCLASS (replaces Daily Puzzle)
 // ═══════════════════════════════════════════════════════════════════
 const TACTICS = [
-  { fen: '1k1r4/pp1b1R2/3q2pp/4p3/2B5/4Q3/PPP2B2/2K5 b - - 0 1', pgn: '', blurb: 'Kasparov vs. Topalov, Wijk aan Zee (1999). An incredible combination ending in a brilliant mating net.' },
-  { fen: '4r1k1/1p3p1p/p2p2p1/3P4/2PB1P2/1P1n1qP1/P1Q4P/1R4K1 w - - 0 1', pgn: '', blurb: 'Fischer vs. Myagmarsuren (1967). Fischer relentlessly attacks on the kingside.' },
-  { fen: 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1', pgn: '', blurb: 'The Italian Game: a fundamental tactical battleground favored by the romantics.' },
-  { fen: 'r2q1rk1/1pp1bppp/p1npbn2/4p3/B3P3/2PP1N2/PP1N1PPP/R1BQR1K1 w - - 0 1', pgn: '', blurb: 'Ruy Lopez structure. Understanding these positional nuances is key to mastery.' },
-  { fen: '8/p3p3/1p1k4/3p4/8/P7/1PP5/1K6 w - - 0 1', pgn: '', blurb: 'A delicate pawn endgame. Precision here separates masters from amateurs.' },
+  { fen: '1k1r4/pp1b1R2/3q2pp/4p3/2B5/4Q3/PPP2B2/2K5 b - - 0 1', pgn: '', blurb: 'Kasparov vs. Topalov, Wijk aan Zee (1999). An incredible combination ending in a brilliant mating net.', url: 'https://www.chess.com/games/view/977345' },
+  { fen: '4r1k1/1p3p1p/p2p2p1/3P4/2PB1P2/1P1n1qP1/P1Q4P/1R4K1 w - - 0 1', pgn: '', blurb: 'Fischer vs. Myagmarsuren (1967). Fischer relentlessly attacks on the kingside.', url: 'https://www.chess.com/games/view/14588' },
+  { fen: 'r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 0 1', pgn: '', blurb: 'The Italian Game: a fundamental tactical battleground favored by the romantics.', url: 'https://www.chess.com/openings/Italian-Game' },
+  { fen: 'r2q1rk1/1pp1bppp/p1npbn2/4p3/B3P3/2PP1N2/PP1N1PPP/R1BQR1K1 w - - 0 1', pgn: '', blurb: 'Ruy Lopez structure. Understanding these positional nuances is key to mastery.', url: 'https://www.chess.com/openings/Ruy-Lopez-Opening' },
+  { fen: '8/p3p3/1p1k4/3p4/8/P7/1PP5/1K6 w - - 0 1', pgn: '', blurb: 'A delicate pawn endgame. Precision here separates masters from amateurs.', url: 'https://www.chess.com/lessons/endgame-patterns-you-must-know' },
 ];
 
 async function loadMasterclass() {
   const blurbNode = document.getElementById('masterclass-blurb');
+  const linkNode  = document.getElementById('masterclass-link');
   if (!blurbNode) return;
   
   const now = new Date();
@@ -1173,6 +1174,11 @@ async function loadMasterclass() {
   
   const tactic = TACTICS[weekNum % TACTICS.length];
   blurbNode.textContent = `"${tactic.blurb}"`;
+  
+  if (linkNode && tactic.url) {
+    linkNode.href = tactic.url;
+    linkNode.style.display = 'inline-flex';
+  }
   
   renderChessBoard(tactic.fen, tactic.pgn, 'masterclass-board');
 }
