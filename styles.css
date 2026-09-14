@@ -687,6 +687,34 @@ body {
 .potm-gain-pos { color: var(--online);      font-weight: 600; }
 .potm-gain-neg { color: var(--burgundy-mid); font-weight: 600; }
 
+/* Elo gain display on POTM card */
+.potm-elo-gain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.potm-elo-gain.elo-positive { color: var(--online); }
+.potm-elo-gain.elo-negative { color: var(--burgundy-mid); }
+.potm-elo-gain.elo-neutral  { color: var(--ivory-faint); }
+
+.elo-arrow {
+  font-size: 10px;
+}
+.elo-value {
+  font-size: 13px;
+}
+.elo-label {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ivory-faint);
+  margin-left: 2px;
+  letter-spacing: 0.06em;
+}
+
 .potm-month {
   font-size: 10px;
   text-transform: uppercase;
@@ -712,7 +740,7 @@ body {
 .wld-games { font-size: 10.5px; color: var(--ivory-faint); font-weight: 400; }
 
 /* ═══════════════════════════════════════════════════════════════════
-   GAME OF THE MONTH
+   GAME OF THE WEEK
 ═══════════════════════════════════════════════════════════════════ */
 .gotm-matchup {
   display: flex;

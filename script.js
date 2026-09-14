@@ -4,22 +4,32 @@
  * All sections use localStorage caching + serial enrichment requests
  * to stay within Chess.com's rate-limit guidelines.
  *
- * POTM & GOTM are computed live from member game archives:
- *   - POTM  → highest (wins×3 + draws) across rated rapid/blitz games
- *   - GOTM  → best game scored by: accuracy > upset margin > game length
+ * POTM & GOTW are computed live from member game archives:
+ *   - POTM  → member with the most Elo/rating gained this month
+ *   - GOTW  → best game of the current week scored by: accuracy > upset > length
  * ─────────────────────────────────────────────────────────────────────
  */
 
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════
-//  CURRENT MONTH CONSTANTS
+//  CURRENT MONTH & WEEK CONSTANTS
 // ═══════════════════════════════════════════════════════════════════
 const _NOW        = new Date();
 const YEAR        = _NOW.getFullYear();
 const MONTH_NUM   = String(_NOW.getMonth() + 1).padStart(2, '0');
 const MONTH_KEY   = `${YEAR}-${MONTH_NUM}`;
 const MONTH_LABEL = _NOW.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
+// Week boundaries (Monday 00:00 → Sunday 23:59)
+const _dayOfWeek   = _NOW.getDay(); // 0=Sun … 6=Sat
+const _mondayDiff  = _dayOfWeek === 0 ? 6 : _dayOfWeek - 1;
+const WEEK_START   = new Date(YEAR, _NOW.getMonth(), _NOW.getDate() - _mondayDiff);
+WEEK_START.setHours(0, 0, 0, 0);
+const WEEK_START_TS = Math.floor(WEEK_START.getTime() / 1000);
+const WEEK_END_TS   = WEEK_START_TS + 7 * 86400;
+const WEEK_KEY      = `${YEAR}-W${String(Math.ceil(((_NOW - new Date(YEAR, 0, 1)) / 86400000 + new Date(YEAR, 0, 1).getDay()) / 7)).padStart(2, '0')}`;
+const WEEK_LABEL    = `Week of ${WEEK_START.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
 // ═══════════════════════════════════════════════════════════════════
 //  CONFIG
@@ -277,10 +287,10 @@ function buildGotmBlurb({ winner, myAccuracy, ratingDiff, moveCount }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  MONTHLY DATA ENGINE  (shared by POTM + GOTM)
+//  MONTHLY DATA ENGINE  (shared by POTM + GOTW)
 // ═══════════════════════════════════════════════════════════════════
 
-/** Single promise shared between POTM and GOTM — computed once per session */
+/** Single promise shared between POTM and GOTW — computed once per session */
 let _monthlyDataPromise = null;
 
 function getMonthlyData() {
@@ -290,14 +300,15 @@ function getMonthlyData() {
 
 /**
  * Fetch game archives for all active members, compute:
- *   - POTM: member with highest score (wins×3 + draws - losses×0.5)
- *   - GOTM: best-scored game across all member archives
+ *   - POTM: member with the most Elo/rating gained this month
+ *           (compares first game rating of the month vs current rating)
+ *   - GOTW: best-scored game from this week (Monday→Sunday)
  *
- * Results are cached for 6 hours under key `monthly:{MONTH_KEY}`.
+ * POTM is cached for the entire month. GOTW is cached for the week.
  */
 async function computeMonthlyData() {
-  // Return cached monthly result if available (v3 forces cache bypass for GOTM formula change)
-  const cacheKey = `monthly:v3:${MONTH_KEY}`;
+  // Return cached monthly result if available (v4 = new Elo-gain + GOTW formula)
+  const cacheKey = `monthly:v4:${MONTH_KEY}:${WEEK_KEY}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
@@ -370,61 +381,98 @@ async function computeMonthlyData() {
       const allGames = archiveData.games || [];
       const games = allGames.filter((g) => g.rated && (g.time_class === 'rapid' || g.time_class === 'blitz'));
 
-      let wins = 0, losses = 0, draws = 0;
-      for (const game of games) {
-        const isWhite = game.white?.username?.toLowerCase() === member.username.toLowerCase();
-        const r = classifyResult(isWhite ? game.white?.result : game.black?.result);
-        if (r === 'win')       wins++;
-        else if (r === 'loss') losses++;
-        else                   draws++;
-      }
+      if (games.length >= CONFIG.MIN_GAMES) {
+        // Find earliest and latest rating for this member in the month
+        // to calculate Elo gain
+        let earliestRating = null;
+        let latestRating = null;
+        let earliestTime = Infinity;
+        let latestTime = -Infinity;
 
-      const totalGames = wins + losses + draws;
-      if (totalGames >= CONFIG.MIN_GAMES) {
-        memberStats.push({ username: member.username, wins, losses, draws, totalGames, games });
+        for (const game of games) {
+          const isWhite = game.white?.username?.toLowerCase() === member.username.toLowerCase();
+          const myRating = Number(isWhite ? game.white?.rating : game.black?.rating) || 0;
+          const gameTime = game.end_time || 0;
+
+          if (myRating > 0 && gameTime < earliestTime) {
+            earliestTime = gameTime;
+            earliestRating = myRating;
+          }
+          if (myRating > 0 && gameTime >= latestTime) {
+            latestTime = gameTime;
+            latestRating = myRating;
+          }
+        }
+
+        const eloGain = (latestRating != null && earliestRating != null)
+          ? latestRating - earliestRating
+          : 0;
+
+        let wins = 0, losses = 0, draws = 0;
+        for (const game of games) {
+          const isWhite = game.white?.username?.toLowerCase() === member.username.toLowerCase();
+          const r = classifyResult(isWhite ? game.white?.result : game.black?.result);
+          if (r === 'win')       wins++;
+          else if (r === 'loss') losses++;
+          else                   draws++;
+        }
+
+        memberStats.push({
+          username: member.username,
+          wins, losses, draws,
+          totalGames: wins + losses + draws,
+          games,
+          eloGain,
+          currentRating: latestRating || rating,
+          format
+        });
       }
     } catch { /* silent */ }
   }
 
-  // ── 3. Compute POTM ───────────────────────────────────────────────
+  // ── 3. Compute POTM (most Elo gained this month) ──────────────────
   let potm = null;
 
   if (memberStats.length > 0) {
     const ranked = [...memberStats].sort((a, b) => {
-      const scoreA = a.wins * 3 + a.draws - a.losses * 0.5;
-      const scoreB = b.wins * 3 + b.draws - b.losses * 0.5;
-      if (scoreB !== scoreA) return scoreB - scoreA;
-      const rateA = a.wins / (a.totalGames || 1);
-      const rateB = b.wins / (b.totalGames || 1);
-      return rateB - rateA;
+      // Primary: most Elo gained
+      if (b.eloGain !== a.eloGain) return b.eloGain - a.eloGain;
+      // Tiebreaker: more games played
+      return b.totalGames - a.totalGames;
     });
 
     const winner = ranked[0];
     const winnerProfile = activeProfiles.find(p => p.username.toLowerCase() === winner.username.toLowerCase()) || {};
 
     potm = {
-      username:   winner.username,
-      wins:       winner.wins,
-      losses:     winner.losses,
-      draws:      winner.draws,
-      totalGames: winner.totalGames,
-      rating:     winnerProfile.rating,
-      format:     winnerProfile.format,
-      avatar:     winnerProfile.avatar,
-      month:      MONTH_LABEL,
+      username:      winner.username,
+      wins:          winner.wins,
+      losses:        winner.losses,
+      draws:         winner.draws,
+      totalGames:    winner.totalGames,
+      eloGain:       winner.eloGain,
+      currentRating: winner.currentRating,
+      rating:        winnerProfile.rating,
+      format:        winner.format || winnerProfile.format,
+      avatar:        winnerProfile.avatar,
+      month:         MONTH_LABEL,
     };
   }
 
-  // ── 4. Compute GOTM ───────────────────────────────────────────────
-  let gotm  = null;
+  // ── 4. Compute GOTW (Game of the Week) ─────────────────────────────
+  let gotw  = null;
   let bestScore = -Infinity;
 
   for (const { username, games } of memberStats) {
     for (const game of games) {
+      // Only consider games from the current week
+      const gameTime = game.end_time || 0;
+      if (gameTime < WEEK_START_TS || gameTime >= WEEK_END_TS) continue;
+
       const isWhite = game.white?.username?.toLowerCase() === username.toLowerCase();
       const resultCode = isWhite ? game.white?.result : game.black?.result;
 
-      // Only consider wins for GOTM
+      // Only consider wins for GOTW
       if (classifyResult(resultCode) !== 'win') continue;
 
       const myRating  = Number(isWhite ? game.white?.rating  : game.black?.rating)  || 0;
@@ -447,7 +495,7 @@ async function computeMonthlyData() {
         const winner = isWhite ? game.white?.username : game.black?.username;
         const fen    = extractFen(game.pgn);
 
-        gotm = {
+        gotw = {
           white:     game.white?.username  || '?',
           black:     game.black?.username  || '?',
           whiteRating: game.white?.rating  || null,
@@ -455,6 +503,7 @@ async function computeMonthlyData() {
           result:    gameResultString(game),
           url:       game.url || 'https://www.chess.com/games',
           fen,
+          week:      WEEK_LABEL,
           blurb: buildGotmBlurb({
             winner,
             myAccuracy,
@@ -466,7 +515,7 @@ async function computeMonthlyData() {
     }
   }
 
-  const result = { potm, gotm, activeProfiles };
+  const result = { potm, gotw, activeProfiles };
   cache.set(cacheKey, result, CONFIG.TTL.MONTHLY);
   return result;
 }
@@ -666,7 +715,15 @@ function renderPotmCard(card, potm) {
             onerror="this.outerHTML='<div class=\\'potm-avatar-placeholder\\'>♛</div>'">`
     : `<div class="potm-avatar-placeholder">♛</div>`;
 
-  const ratingStr = potm.rating ? `${escHtml(potm.format)} ${Number(potm.rating).toLocaleString()}` : '';
+  const ratingStr = potm.currentRating
+    ? `${escHtml(potm.format)} ${Number(potm.currentRating).toLocaleString()}`
+    : (potm.rating ? `${escHtml(potm.format)} ${Number(potm.rating).toLocaleString()}` : '');
+
+  // Elo gain display
+  const eloGain = potm.eloGain || 0;
+  const eloSign = eloGain >= 0 ? '+' : '';
+  const eloClass = eloGain > 0 ? 'elo-positive' : eloGain < 0 ? 'elo-negative' : 'elo-neutral';
+  const eloArrow = eloGain > 0 ? '▲' : eloGain < 0 ? '▼' : '–';
 
   const wld = `
     <span class="potm-wld">
@@ -684,6 +741,11 @@ function renderPotmCard(card, potm) {
     <div class="potm-info">
       <div class="potm-name">${escHtml(potm.username)}</div>
       ${ratingStr ? `<div class="potm-rating">${ratingStr}</div>` : ''}
+      <div class="potm-elo-gain ${eloClass}">
+        <span class="elo-arrow">${eloArrow}</span>
+        <span class="elo-value">${eloSign}${eloGain}</span>
+        <span class="elo-label">Elo this month</span>
+      </div>
       <div class="potm-rating" style="margin-top:4px">${wld}</div>
       <div class="potm-month">${escHtml(potm.month)}</div>
     </div>
@@ -691,44 +753,44 @@ function renderPotmCard(card, potm) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  SECTION 4 — GAME OF THE MONTH  (live-computed)
+//  SECTION 4 — GAME OF THE WEEK  (live-computed)
 // ═══════════════════════════════════════════════════════════════════
-async function loadGameOfMonth() {
+async function loadGameOfWeek() {
   const card = document.getElementById('gotm-card');
 
   card.innerHTML = `<div class="skeleton-block skeleton" style="height:220px;border-radius:8px"></div>`;
 
   try {
-    const { gotm } = await getMonthlyData();
-    if (!gotm) {
-      card.innerHTML = `<div class="empty-state">No games found for ${MONTH_LABEL} yet.</div>`;
+    const { gotw } = await getMonthlyData();
+    if (!gotw) {
+      card.innerHTML = `<div class="empty-state">No games found for ${WEEK_LABEL} yet.</div>`;
       return;
     }
-    renderGotmCard(card, gotm);
+    renderGotwCard(card, gotw);
   } catch (e) {
-    console.error('[Elegance] GOTM failed:', e);
-    card.innerHTML = `<div class="empty-state">Game of the Month could not be computed.</div>`;
+    console.error('[Elegance] GOTW failed:', e);
+    card.innerHTML = `<div class="empty-state">Game of the Week could not be computed.</div>`;
   }
 }
 
-function renderGotmCard(card, gotm) {
+function renderGotwCard(card, gotw) {
   const resultDisplay =
-    gotm.result === '1-0' ? '1–0' :
-    gotm.result === '0-1' ? '0–1' : '½–½';
+    gotw.result === '1-0' ? '1–0' :
+    gotw.result === '0-1' ? '0–1' : '½–½';
 
-  const whiteRatingStr = gotm.whiteRating ? `<span class="gotm-player-rating">${gotm.whiteRating}</span>` : '';
-  const blackRatingStr = gotm.blackRating ? `<span class="gotm-player-rating">${gotm.blackRating}</span>` : '';
+  const whiteRatingStr = gotw.whiteRating ? `<span class="gotm-player-rating">${gotw.whiteRating}</span>` : '';
+  const blackRatingStr = gotw.blackRating ? `<span class="gotm-player-rating">${gotw.blackRating}</span>` : '';
 
   card.innerHTML = `
     <div class="gotm-matchup">
       <div class="gotm-player">
-        <div class="gotm-player-name" title="${escHtml(gotm.white)}">${escHtml(gotm.white)}</div>
+        <div class="gotm-player-name" title="${escHtml(gotw.white)}">${escHtml(gotw.white)}</div>
         ${whiteRatingStr}
         <div class="gotm-player-color">White</div>
       </div>
       <div class="gotm-vs">${resultDisplay}</div>
       <div class="gotm-player">
-        <div class="gotm-player-name" title="${escHtml(gotm.black)}">${escHtml(gotm.black)}</div>
+        <div class="gotm-player-name" title="${escHtml(gotw.black)}">${escHtml(gotw.black)}</div>
         ${blackRatingStr}
         <div class="gotm-player-color">Black</div>
       </div>
@@ -736,9 +798,9 @@ function renderGotmCard(card, gotm) {
     <div class="gotm-board-wrap">
       <div id="gotm-board"></div>
     </div>
-    <p class="gotm-blurb">"${gotm.blurb}"</p>
+    <p class="gotm-blurb">"${gotw.blurb}"</p>
     <a class="gotm-replay-btn"
-       href="${escHtml(gotm.url)}"
+       href="${escHtml(gotw.url)}"
        target="_blank"
        rel="noopener noreferrer"
        id="gotm-replay-link">
@@ -746,7 +808,7 @@ function renderGotmCard(card, gotm) {
     </a>
   `;
 
-  renderChessBoard(gotm.fen, '', 'gotm-board');
+  renderChessBoard(gotw.fen, '', 'gotm-board');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1344,7 +1406,7 @@ async function init() {
     loadActivePulse(),
     loadJoiners(false, true),
     loadPlayerOfMonth(),
-    loadGameOfMonth(),
+    loadGameOfWeek(),
     loadEliteRoster(),
     loadHallOfFame(),
     loadMatches(),
