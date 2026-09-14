@@ -31,9 +31,9 @@ const CONFIG = {
   useProxy:  false,
 
   TTL: {
-    CLUB:     12 * 60 * 60 * 1000, // 12 h
-    MEMBERS:  12 * 60 * 60 * 1000, // 12 h
-    MATCHES:   1 * 60 * 60 * 1000, //  1 h
+    CLUB:      5 * 60 * 1000, //  5 min
+    MEMBERS:   5 * 60 * 1000, //  5 min
+    MATCHES:   5 * 60 * 1000, //  5 min
     PLAYER:    6 * 60 * 60 * 1000, //  6 h
     STATS:     6 * 60 * 60 * 1000, //  6 h
     PUZZLE:   24 * 60 * 60 * 1000, // 24 h
@@ -1217,6 +1217,19 @@ async function init() {
   ]);
 
   updateFooter();
+
+  // Auto-refresh dynamic sections every 60 seconds
+  setInterval(async () => {
+    try { await loadHeader(); } catch (e) {}
+    await Promise.allSettled([
+      loadActivePulse(),
+      loadJoiners(),
+      loadEliteRoster(),
+      loadHallOfFame(),
+      loadMatches(),
+    ]);
+    updateFooter();
+  }, 60 * 1000);
 }
 
 if (document.readyState === 'loading') {
