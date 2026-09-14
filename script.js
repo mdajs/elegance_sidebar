@@ -212,8 +212,14 @@ function extractFen(pgn) {
 /** Count half-moves from a PGN move-number scan */
 function estimateMoveCount(pgn) {
   if (!pgn) return 0;
-  const matches = pgn.match(/\d+\./g);
-  return matches ? matches.length : 0;
+  const matches = [...pgn.matchAll(/(?:^|\s)(\d+)\.(?!\.)/g)];
+  if (!matches.length) return 0;
+  let maxMove = 0;
+  for (const m of matches) {
+    const num = parseInt(m[1], 10);
+    if (num > maxMove) maxMove = num;
+  }
+  return maxMove;
 }
 
 /**
