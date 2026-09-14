@@ -471,11 +471,12 @@ async function computeMonthlyData() {
 // ═══════════════════════════════════════════════════════════════════
 //  SECTION 1 — CLUB HEADER
 // ═══════════════════════════════════════════════════════════════════
-async function loadHeader() {
+async function loadHeader(bypassCache = false) {
   const data = await apiFetch(
     `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}`,
     'club:profile',
-    CONFIG.TTL.CLUB
+    CONFIG.TTL.CLUB,
+    bypassCache
   );
 
   const iconEl     = document.getElementById('club-icon');
@@ -1221,11 +1222,14 @@ async function triggerManualRefresh() {
   const el = document.getElementById('footer-refresh');
   if (el) el.innerHTML = `↻ Syncing live data…`;
   
-  // Clear members local cache key to force fresh API payload
-  try { localStorage.removeItem('elegance:club:members'); } catch {}
+  // Clear local cache keys to force fresh API payload
+  try { 
+    localStorage.removeItem('elegance:club:members'); 
+    localStorage.removeItem('elegance:club:profile');
+  } catch {}
   
   await Promise.allSettled([
-    loadHeader(),
+    loadHeader(true),
     loadActivePulse(),
     loadJoiners(true, true),
     loadEliteRoster(),
@@ -1239,8 +1243,11 @@ async function triggerManualRefresh() {
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 async function init() {
-  // Clear any existing stale members cache key on startup
-  try { localStorage.removeItem('elegance:club:members'); } catch {}
+  // Clear any existing stale cache keys on startup
+  try { 
+    localStorage.removeItem('elegance:club:members');
+    localStorage.removeItem('elegance:club:profile');
+  } catch {}
 
   const footerEl = document.getElementById('footer-refresh');
   if (footerEl) {
@@ -1278,7 +1285,7 @@ async function init() {
 
   // Auto-refresh Header, Roster, Hall of Fame & Matches every 60 seconds
   setInterval(async () => {
-    try { await loadHeader(); } catch (e) {}
+    try { await loadHeader(true); } catch (e) {}
     await Promise.allSettled([
       loadEliteRoster(),
       loadHallOfFame(),
