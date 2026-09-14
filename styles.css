@@ -515,6 +515,21 @@ body {
   font-weight: 500;
 }
 
+/* Win / Loss / Draw record on POTM card */
+.potm-wld {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.wld-w    { color: var(--online); }
+.wld-l    { color: var(--burgundy-mid); }
+.wld-d    { color: var(--gold-dim); }
+.wld-sep  { color: var(--ivory-faint); font-weight: 400; }
+.wld-games { font-size: 10.5px; color: var(--ivory-faint); font-weight: 400; }
+
 /* ═══════════════════════════════════════════════════════════════════
    GAME OF THE MONTH
 ═══════════════════════════════════════════════════════════════════ */
@@ -544,6 +559,13 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+}
+
+.gotm-player-rating {
+  font-size: 10.5px;
+  color: var(--gold-dim);
+  font-weight: 500;
+  text-align: center;
 }
 
 .gotm-player-color {

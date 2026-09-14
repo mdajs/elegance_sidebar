@@ -3,10 +3,23 @@
  * Pulls live data from Chess.com's public PubAPI (no API key required).
  * All sections use localStorage caching + serial enrichment requests
  * to stay within Chess.com's rate-limit guidelines.
+ *
+ * POTM & GOTM are computed live from member game archives:
+ *   - POTM  → highest (wins×3 + draws) across rated rapid/blitz games
+ *   - GOTM  → best game scored by: accuracy > upset margin > game length
  * ─────────────────────────────────────────────────────────────────────
  */
 
 'use strict';
+
+// ═══════════════════════════════════════════════════════════════════
+//  CURRENT MONTH CONSTANTS
+// ═══════════════════════════════════════════════════════════════════
+const _NOW        = new Date();
+const YEAR        = _NOW.getFullYear();
+const MONTH_NUM   = String(_NOW.getMonth() + 1).padStart(2, '0');
+const MONTH_KEY   = `${YEAR}-${MONTH_NUM}`;
+const MONTH_LABEL = _NOW.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
 // ═══════════════════════════════════════════════════════════════════
 //  CONFIG
@@ -14,27 +27,28 @@
 const CONFIG = {
   CLUB_ID:   'elegance',
   API_BASE:  'https://api.chess.com/pub',
-  // Proxy is prepended as a fallback on CORS errors
   PROXY_URL: 'https://corsproxy.io/?',
   useProxy:  false,
 
-  // Cache TTLs (milliseconds)
   TTL: {
-    CLUB:    12 * 60 * 60 * 1000, // 12 h
-    MEMBERS: 12 * 60 * 60 * 1000, // 12 h
-    MATCHES:  1 * 60 * 60 * 1000, //  1 h
-    PLAYER:   6 * 60 * 60 * 1000, //  6 h
-    STATS:    6 * 60 * 60 * 1000, //  6 h
-    PUZZLE:  24 * 60 * 60 * 1000, // 24 h
+    CLUB:     12 * 60 * 60 * 1000, // 12 h
+    MEMBERS:  12 * 60 * 60 * 1000, // 12 h
+    MATCHES:   1 * 60 * 60 * 1000, //  1 h
+    PLAYER:    6 * 60 * 60 * 1000, //  6 h
+    STATS:     6 * 60 * 60 * 1000, //  6 h
+    PUZZLE:   24 * 60 * 60 * 1000, // 24 h
+    ARCHIVES:  2 * 60 * 60 * 1000, //  2 h  (game archives for current month)
+    MONTHLY:   6 * 60 * 60 * 1000, //  6 h  (computed POTM+GOTM result)
   },
 
-  // Enrichment limits (per-load)
-  MAX_JOINERS:       5,   // new joiners shown
-  MAX_ENRICH:        5,   // max avatar calls per load
-  ENRICH_DELAY_MS: 180,   // ms between enrichment calls
-  MAX_VOTE:          3,   // max vote chess entries shown
-  MAX_FINISHED:      3,   // max finished matches shown
-  MAX_EVENTS:        6,   // max upcoming events shown
+  MAX_JOINERS:       5,
+  MAX_ENRICH:        5,
+  ENRICH_DELAY_MS: 180,
+  MAX_VOTE:          3,
+  MAX_FINISHED:      3,
+  MAX_EVENTS:        6,
+  MAX_CANDIDATES:   15,  // members to scan for POTM/GOTM
+  MIN_GAMES:         1,  // minimum games to qualify for POTM
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -65,7 +79,7 @@ const cache = {
         JSON.stringify({ data, expires: Date.now() + ttl })
       );
     } catch {
-      // Storage quota exceeded — silently skip caching
+      // Storage quota exceeded — skip caching silently
     }
   },
 };
@@ -74,35 +88,28 @@ const cache = {
 //  FETCH HELPER  (CORS-proxy auto-fallback)
 // ═══════════════════════════════════════════════════════════════════
 async function apiFetch(url, cacheKey = null, ttl = 0) {
-  // Return cached copy if fresh
   if (cacheKey) {
     const hit = cache.get(cacheKey);
     if (hit !== null) return hit;
   }
 
   const attempt = async (targetUrl) => {
-    const res = await fetch(targetUrl, {
-      headers: { Accept: 'application/json' },
-    });
+    const res = await fetch(targetUrl, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`HTTP ${res.status} — ${targetUrl}`);
     return res.json();
   };
 
   let data;
-  const directUrl = url;
-  const proxyUrl  = CONFIG.PROXY_URL + encodeURIComponent(url);
-
   if (CONFIG.useProxy) {
-    data = await attempt(proxyUrl);
+    data = await attempt(CONFIG.PROXY_URL + encodeURIComponent(url));
   } else {
     try {
-      data = await attempt(directUrl);
+      data = await attempt(url);
     } catch (err) {
-      // Network / CORS error → switch to proxy for this session
       if (err instanceof TypeError || (err.message && err.message.includes('Failed to fetch'))) {
-        console.info('[Elegance] CORS detected — switching to proxy for this session.');
+        console.info('[Elegance] CORS detected — switching to proxy.');
         CONFIG.useProxy = true;
-        data = await attempt(proxyUrl);
+        data = await attempt(CONFIG.PROXY_URL + encodeURIComponent(url));
       } else {
         throw err;
       }
@@ -129,11 +136,11 @@ function escHtml(str) {
 
 function relativeTime(unixSec) {
   const diff = Math.floor(Date.now() / 1000 - unixSec);
-  if (diff < 60)               return 'just now';
-  if (diff < 3600)             return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400)            return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 86400 * 30)       return `${Math.floor(diff / 86400)}d ago`;
-  if (diff < 86400 * 365)      return `${Math.floor(diff / (86400 * 30))}mo ago`;
+  if (diff < 60)             return 'just now';
+  if (diff < 3600)           return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400)          return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 86400 * 30)     return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 86400 * 365)    return `${Math.floor(diff / (86400 * 30))}mo ago`;
   return `${Math.floor(diff / (86400 * 365))}y ago`;
 }
 
@@ -154,27 +161,21 @@ function extractYear(unixSec) {
   return new Date(unixSec * 1000).getFullYear();
 }
 
-/** Convert ISO-3166-1 alpha-2 country code to emoji flag */
 function countryCodeToFlag(code) {
   if (!code || code.length !== 2) return '';
   try {
     return String.fromCodePoint(
       ...Array.from(code.toUpperCase()).map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)
     );
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
-/** Extract opponent club slug/name from a match object */
 function getOpponentName(match) {
-  // The match "name" field is usually something like "Elegance vs Rival Club"
   if (match.name) {
-    const vsMatch = match.name.match(/vs\.?\s+(.+)/i);
-    if (vsMatch) return vsMatch[1].trim();
+    const m = match.name.match(/vs\.?\s+(.+)/i);
+    if (m) return m[1].trim();
     return match.name;
   }
-  // Fallback: parse the opponent URL slug
   if (match.opponent) {
     const slug = String(match.opponent).split('/').filter(Boolean).pop() || '';
     return slug.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
@@ -182,7 +183,6 @@ function getOpponentName(match) {
   return 'Unknown Club';
 }
 
-/** Build a skeleton members list for loading state */
 function skeletonMemberList(count) {
   return Array.from({ length: count }, (_, i) => `
     <li class="member-item" style="animation-delay:${i * 0.08}s; pointer-events:none">
@@ -193,6 +193,275 @@ function skeletonMemberList(count) {
       </div>
     </li>
   `).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CHESS GAME HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+/** Extract piece-placement FEN from a Chess.com PGN string */
+function extractFen(pgn) {
+  if (!pgn || typeof Chess === 'undefined') return '';
+  try {
+    const chess = new Chess();
+    chess.load_pgn(pgn.trim());
+    return chess.fen().split(' ')[0];
+  } catch { return ''; }
+}
+
+/** Count half-moves from a PGN move-number scan */
+function estimateMoveCount(pgn) {
+  if (!pgn) return 0;
+  const matches = pgn.match(/\d+\./g);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Determine result for a game's white/black from Chess.com result codes.
+ * Returns: 'win' | 'loss' | 'draw'
+ */
+const LOSS_RESULTS = new Set([
+  'checkmated','timeout','resigned','lose','abandoned','bughousepartnerlose',
+]);
+const DRAW_RESULTS = new Set([
+  'agreed','repetition','stalemate','insufficient','50move',
+  'timevsinsufficient','insufficient material',
+]);
+
+function classifyResult(resultCode) {
+  if (!resultCode) return 'draw';
+  if (resultCode === 'win') return 'win';
+  if (LOSS_RESULTS.has(resultCode)) return 'loss';
+  return 'draw';
+}
+
+/** Get the standardised game result string (1-0 / 0-1 / 1/2-1/2) */
+function gameResultString(game) {
+  const wr = classifyResult(game.white?.result);
+  if (wr === 'win') return '1-0';
+  const br = classifyResult(game.black?.result);
+  if (br === 'win') return '0-1';
+  return '1/2-1/2';
+}
+
+/**
+ * Auto-generate a short, elegant blurb for the Game of the Month.
+ * Picks the most interesting fact about the game.
+ */
+function buildGotmBlurb({ winner, myAccuracy, ratingDiff, moveCount }) {
+  if (myAccuracy != null && myAccuracy >= 90) {
+    return `A near-perfect game — ${escHtml(winner)} played with ${myAccuracy.toFixed(1)}% accuracy.`;
+  }
+  if (ratingDiff >= 150) {
+    return `A bold upset — ${escHtml(winner)} defeated an opponent rated ${ratingDiff} points higher.`;
+  }
+  if (ratingDiff >= 80) {
+    return `${escHtml(winner)} punched above their weight, beating a higher-rated opponent in fine style.`;
+  }
+  if (moveCount >= 50) {
+    return `A ${moveCount}-move masterpiece of endgame technique by ${escHtml(winner)}.`;
+  }
+  if (myAccuracy != null) {
+    return `Decided with precision — ${escHtml(winner)} converted a sharp middlegame with ${myAccuracy.toFixed(1)}% accuracy.`;
+  }
+  return `${escHtml(winner)} delivered an impressive performance in a competitive clash.`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MONTHLY DATA ENGINE  (shared by POTM + GOTM)
+// ═══════════════════════════════════════════════════════════════════
+
+/** Single promise shared between POTM and GOTM — computed once per session */
+let _monthlyDataPromise = null;
+
+function getMonthlyData() {
+  if (!_monthlyDataPromise) _monthlyDataPromise = computeMonthlyData();
+  return _monthlyDataPromise;
+}
+
+/**
+ * Fetch game archives for all active members, compute:
+ *   - POTM: member with highest score (wins×3 + draws - losses×0.5)
+ *   - GOTM: best-scored game across all member archives
+ *
+ * Results are cached for 6 hours under key `monthly:{MONTH_KEY}`.
+ */
+async function computeMonthlyData() {
+  // Return cached monthly result if available
+  const cacheKey = `monthly:${MONTH_KEY}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  // ── 1. Fetch club members ─────────────────────────────────────────
+  const membersData = await apiFetch(
+    `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
+    'club:members',
+    CONFIG.TTL.MEMBERS
+  );
+
+  // Use weekly active members as primary candidates
+  const weekly  = membersData.weekly  || [];
+  const monthly = membersData.monthly || [];
+  const seen    = new Set();
+  const candidates = [...weekly, ...monthly]
+    .filter(({ username }) => {
+      if (seen.has(username)) return false;
+      seen.add(username);
+      return true;
+    })
+    .slice(0, CONFIG.MAX_CANDIDATES);
+
+  // ── 2. Fetch game archives (serial, rate-limit safe) ──────────────
+  const memberStats = []; // { username, wins, losses, draws, games[] }
+
+  for (const member of candidates) {
+    await sleep(CONFIG.ENRICH_DELAY_MS);
+    try {
+      const archiveData = await apiFetch(
+        `${CONFIG.API_BASE}/player/${member.username}/games/${YEAR}/${MONTH_NUM}`,
+        `archives:${member.username}:${MONTH_KEY}`,
+        CONFIG.TTL.ARCHIVES
+      );
+
+      const allGames = archiveData.games || [];
+      // Filter to rated rapid + blitz only (most meaningful for a leaderboard)
+      const games = allGames.filter(
+        (g) => g.rated && (g.time_class === 'rapid' || g.time_class === 'blitz')
+      );
+
+      let wins = 0, losses = 0, draws = 0;
+
+      for (const game of games) {
+        const isWhite = game.white?.username?.toLowerCase() === member.username.toLowerCase();
+        const resultCode = isWhite ? game.white?.result : game.black?.result;
+        const r = classifyResult(resultCode);
+        if (r === 'win')       wins++;
+        else if (r === 'loss') losses++;
+        else                   draws++;
+      }
+
+      const totalGames = wins + losses + draws;
+      if (totalGames < CONFIG.MIN_GAMES) continue;
+
+      memberStats.push({ username: member.username, wins, losses, draws, totalGames, games });
+    } catch {
+      // Member has no archive or API error — skip silently
+    }
+  }
+
+  // ── 3. Compute POTM ───────────────────────────────────────────────
+  let potm = null;
+
+  if (memberStats.length > 0) {
+    // Score = wins×3 + draws - losses×0.5, tiebreak by win %
+    const ranked = [...memberStats].sort((a, b) => {
+      const scoreA = a.wins * 3 + a.draws - a.losses * 0.5;
+      const scoreB = b.wins * 3 + b.draws - b.losses * 0.5;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      const rateA = a.wins / (a.totalGames || 1);
+      const rateB = b.wins / (b.totalGames || 1);
+      return rateB - rateA;
+    });
+
+    const winner = ranked[0];
+
+    // Fetch winner's profile + stats for rating and avatar
+    let avatar  = null;
+    let rating  = null;
+    let format  = 'Rapid';
+
+    try {
+      await sleep(CONFIG.ENRICH_DELAY_MS);
+      const player = await apiFetch(
+        `${CONFIG.API_BASE}/player/${winner.username}`,
+        `player:${winner.username}`,
+        CONFIG.TTL.PLAYER
+      );
+      avatar = player.avatar || null;
+    } catch { /* silent */ }
+
+    try {
+      await sleep(CONFIG.ENRICH_DELAY_MS);
+      const stats = await apiFetch(
+        `${CONFIG.API_BASE}/player/${winner.username}/stats`,
+        `stats:${winner.username}`,
+        CONFIG.TTL.STATS
+      );
+      const rapid  = stats?.chess_rapid?.last?.rating  || 0;
+      const blitz  = stats?.chess_blitz?.last?.rating  || 0;
+      const bullet = stats?.chess_bullet?.last?.rating || 0;
+      if (rapid >= blitz && rapid >= bullet) { rating = rapid; format = 'Rapid'; }
+      else if (blitz >= bullet)             { rating = blitz; format = 'Blitz'; }
+      else                                  { rating = bullet; format = 'Bullet'; }
+    } catch { /* silent */ }
+
+    potm = {
+      username:   winner.username,
+      wins:       winner.wins,
+      losses:     winner.losses,
+      draws:      winner.draws,
+      totalGames: winner.totalGames,
+      rating,
+      format,
+      avatar,
+      month: MONTH_LABEL,
+    };
+  }
+
+  // ── 4. Compute GOTM ───────────────────────────────────────────────
+  let gotm  = null;
+  let bestScore = -Infinity;
+
+  for (const { username, games } of memberStats) {
+    for (const game of games) {
+      const isWhite = game.white?.username?.toLowerCase() === username.toLowerCase();
+      const resultCode = isWhite ? game.white?.result : game.black?.result;
+
+      // Only consider wins for GOTM
+      if (classifyResult(resultCode) !== 'win') continue;
+
+      const myRating  = Number(isWhite ? game.white?.rating  : game.black?.rating)  || 0;
+      const oppRating = Number(isWhite ? game.black?.rating  : game.white?.rating)  || 0;
+      const myAccuracy = game.accuracies
+        ? Number(isWhite ? game.accuracies.white : game.accuracies.black)
+        : null;
+
+      const ratingDiff = oppRating - myRating; // positive = upset
+      const moveCount  = estimateMoveCount(game.pgn);
+
+      // Composite score (higher = more interesting game)
+      let score = 0;
+      if (myAccuracy != null) score += myAccuracy * 2.0; // 0–200
+      score += Math.max(0, ratingDiff) * 0.8;             // upset bonus
+      score += Math.min(moveCount, 60) * 0.5;             // length bonus
+
+      if (score > bestScore) {
+        bestScore = score;
+        const winner = isWhite ? game.white?.username : game.black?.username;
+        const fen    = extractFen(game.pgn);
+
+        gotm = {
+          white:     game.white?.username  || '?',
+          black:     game.black?.username  || '?',
+          whiteRating: game.white?.rating  || null,
+          blackRating: game.black?.rating  || null,
+          result:    gameResultString(game),
+          url:       game.url || 'https://www.chess.com/games',
+          fen,
+          blurb: buildGotmBlurb({
+            winner,
+            myAccuracy,
+            ratingDiff: Math.max(0, ratingDiff),
+            moveCount,
+          }),
+        };
+      }
+    }
+  }
+
+  const result = { potm, gotm, memberStats };
+  cache.set(cacheKey, result, CONFIG.TTL.MONTHLY);
+  return result;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -212,20 +481,13 @@ async function loadHeader() {
   const descEl     = document.getElementById('club-desc');
   const linkEl     = document.getElementById('club-link');
 
-  // Club icon
   if (data.icon) {
-    iconEl.src = data.icon;
-    iconEl.onload = () => {
-      iconEl.classList.add('loaded');
-      fallbackEl.classList.add('hidden');
-    };
-    iconEl.onerror = () => { /* keep fallback visible */ };
+    iconEl.src    = data.icon;
+    iconEl.onload = () => { iconEl.classList.add('loaded'); fallbackEl.classList.add('hidden'); };
   }
 
-  // Club name
   nameEl.textContent = data.name || 'Elegance';
 
-  // Members + established year
   const count = data.members_count != null ? Number(data.members_count).toLocaleString() : '–';
   const year  = data.created ? extractYear(data.created) : '';
   subEl.innerHTML = `
@@ -234,19 +496,17 @@ async function loadHeader() {
     Est. ${escHtml(String(year))}
   `;
 
-  // Description — strip HTML tags returned by the API
   if (data.description && data.description.trim()) {
     const tmp = document.createElement('div');
     tmp.innerHTML = data.description;
     descEl.textContent = tmp.textContent || tmp.innerText || '';
   }
 
-  // Link
   if (data.url) linkEl.href = data.url;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  SECTION 2 — NEW TO THE CLUB (New Joiners)
+//  SECTION 2 — NEW TO THE CLUB
 // ═══════════════════════════════════════════════════════════════════
 async function loadJoiners() {
   const list = document.getElementById('joiners-list');
@@ -258,7 +518,6 @@ async function loadJoiners() {
     CONFIG.TTL.MEMBERS
   );
 
-  // Merge weekly + monthly, deduplicate by username
   const seen = new Set();
   const combined = [...(membersData.weekly || []), ...(membersData.monthly || [])]
     .filter(({ username }) => {
@@ -267,7 +526,6 @@ async function loadJoiners() {
       return true;
     });
 
-  // Sort by join timestamp descending, take top N
   const recent = combined
     .sort((a, b) => (b.joined || 0) - (a.joined || 0))
     .slice(0, CONFIG.MAX_JOINERS);
@@ -277,7 +535,6 @@ async function loadJoiners() {
     return;
   }
 
-  // Render placeholder rows immediately
   list.innerHTML = '';
   recent.forEach((member, i) => {
     const li = document.createElement('li');
@@ -298,7 +555,6 @@ async function loadJoiners() {
     list.appendChild(li);
   });
 
-  // Enrich serially (avatar + title + flag)
   for (let i = 0; i < Math.min(recent.length, CONFIG.MAX_ENRICH); i++) {
     await sleep(CONFIG.ENRICH_DELAY_MS);
     await enrichMemberRow(recent[i].username, i);
@@ -318,9 +574,8 @@ async function enrichMemberRow(username, idx) {
     const row    = document.getElementById(`member-row-${idx}`);
     if (!ph || !nameEl || !row) return;
 
-    // Replace placeholder with avatar img or initial letter
     if (player.avatar) {
-      const img = document.createElement('img');
+      const img     = document.createElement('img');
       img.className = 'member-avatar';
       img.src       = player.avatar;
       img.alt       = username;
@@ -335,214 +590,145 @@ async function enrichMemberRow(username, idx) {
       ph.textContent = username.charAt(0).toUpperCase();
     }
 
-    // Add title badge
     if (player.title) {
-      nameEl.innerHTML = `
-        <span class="member-title">${escHtml(player.title)}</span>${escHtml(username)}
-      `;
+      nameEl.innerHTML = `<span class="member-title">${escHtml(player.title)}</span>${escHtml(username)}`;
     }
 
-    // Add country flag
     if (player.country) {
-      const countryCode = player.country.split('/').pop().toUpperCase();
-      const flag = countryCodeToFlag(countryCode);
+      const code = player.country.split('/').pop().toUpperCase();
+      const flag = countryCodeToFlag(code);
       if (flag) {
-        const flagSpan = document.createElement('span');
-        flagSpan.className = 'member-country';
-        flagSpan.textContent = flag;
-        flagSpan.title = countryCode;
-        row.appendChild(flagSpan);
+        const span = document.createElement('span');
+        span.className   = 'member-country';
+        span.textContent = flag;
+        span.title       = code;
+        row.appendChild(span);
       }
     }
-  } catch {
-    // Silent — member still renders with initial letter
-  }
+  } catch { /* silent */ }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  SECTION 3 — PLAYER OF THE MONTH
+//  SECTION 3 — PLAYER OF THE MONTH  (live-computed)
 // ═══════════════════════════════════════════════════════════════════
 async function loadPlayerOfMonth() {
   const card = document.getElementById('potm-card');
 
-  try {
-    const resp = await fetch('data/player-of-month.json');
-    if (!resp.ok) throw new Error('no file');
-    const potm = await resp.json();
+  // Show computing state
+  card.innerHTML = `
+    <div class="potm-loading">
+      <div class="potm-avatar-placeholder skeleton" style="border:none;color:transparent;flex-shrink:0"></div>
+      <div class="potm-info" style="flex:1">
+        <div class="skeleton-block skeleton" style="height:14px;width:55%;border-radius:3px;margin-bottom:8px"></div>
+        <div class="skeleton-block skeleton" style="height:11px;width:38%;border-radius:3px;margin-bottom:6px"></div>
+        <div class="skeleton-block skeleton" style="height:10px;width:28%;border-radius:3px"></div>
+      </div>
+    </div>
+  `;
 
-    if (potm && potm.username) {
-      renderPOTM(card, potm);
+  try {
+    const { potm } = await getMonthlyData();
+    if (!potm) {
+      card.innerHTML = `<div class="empty-state" style="width:100%">No games recorded for ${MONTH_LABEL} yet.</div>`;
       return;
     }
-  } catch { /* file missing or empty → compute live */ }
-
-  // Live fallback: rank top weekly members by best rating
-  await computeLivePOTM(card);
+    renderPotmCard(card, potm);
+  } catch (e) {
+    console.error('[Elegance] POTM failed:', e);
+    card.innerHTML = `<div class="empty-state" style="width:100%">Player of the Month could not be computed.</div>`;
+  }
 }
 
-function renderPOTM(card, potm) {
-  let avatarHtml;
-  if (potm.avatar_url) {
-    avatarHtml = `<img class="potm-avatar" src="${escHtml(potm.avatar_url)}" alt="${escHtml(potm.username)}"
-                       onerror="this.outerHTML='<div class=\\'potm-avatar-placeholder\\'>♛</div>'">`;
-  } else {
-    avatarHtml = `<div class="potm-avatar-placeholder">♛</div>`;
-  }
+function renderPotmCard(card, potm) {
+  const avatarHtml = potm.avatar
+    ? `<img class="potm-avatar" src="${escHtml(potm.avatar)}" alt="${escHtml(potm.username)}"
+            onerror="this.outerHTML='<div class=\\'potm-avatar-placeholder\\'>♛</div>'">`
+    : `<div class="potm-avatar-placeholder">♛</div>`;
 
-  let gainHtml = '';
-  if (potm.gain != null) {
-    if (potm.gain > 0) {
-      gainHtml = `<span class="potm-gain-pos"> (+${potm.gain})</span>`;
-    } else if (potm.gain < 0) {
-      gainHtml = `<span class="potm-gain-neg"> (${potm.gain})</span>`;
-    }
-  }
+  const ratingStr = potm.rating ? `${escHtml(potm.format)} ${Number(potm.rating).toLocaleString()}` : '';
+
+  const wld = `
+    <span class="potm-wld">
+      <span class="wld-w" title="Wins">${potm.wins}W</span>
+      <span class="wld-sep">/</span>
+      <span class="wld-l" title="Losses">${potm.losses}L</span>
+      <span class="wld-sep">/</span>
+      <span class="wld-d" title="Draws">${potm.draws}D</span>
+      <span class="wld-games"> · ${potm.totalGames} games</span>
+    </span>
+  `;
 
   card.innerHTML = `
     ${avatarHtml}
     <div class="potm-info">
       <div class="potm-name">${escHtml(potm.username)}</div>
-      <div class="potm-rating">
-        ${escHtml(potm.format || 'Rapid')} ${potm.rating != null ? Number(potm.rating).toLocaleString() : '–'}${gainHtml}
-      </div>
-      ${potm.month ? `<div class="potm-month">${escHtml(potm.month)}</div>` : ''}
+      ${ratingStr ? `<div class="potm-rating">${ratingStr}</div>` : ''}
+      <div class="potm-rating" style="margin-top:4px">${wld}</div>
+      <div class="potm-month">${escHtml(potm.month)}</div>
     </div>
   `;
-}
-
-async function computeLivePOTM(card) {
-  // Show computing state
-  card.innerHTML = `
-    <div class="potm-avatar-placeholder skeleton" style="border:none; color:transparent; flex-shrink:0"></div>
-    <div class="potm-info" style="flex:1">
-      <div class="skeleton-block skeleton" style="height:14px; width:55%; border-radius:3px; margin-bottom:8px"></div>
-      <div class="skeleton-block skeleton" style="height:11px; width:38%; border-radius:3px"></div>
-    </div>
-  `;
-
-  try {
-    const membersData = await apiFetch(
-      `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
-      'club:members',
-      CONFIG.TTL.MEMBERS
-    );
-
-    const candidates = (membersData.weekly || []).slice(0, 10);
-    let best = null;
-    let bestRating = -1;
-
-    // Rank by highest rapid (fallback blitz, then bullet)
-    for (const member of candidates) {
-      await sleep(CONFIG.ENRICH_DELAY_MS);
-      try {
-        const stats = await apiFetch(
-          `${CONFIG.API_BASE}/player/${member.username}/stats`,
-          `stats:${member.username}`,
-          CONFIG.TTL.STATS
-        );
-
-        const rapid  = stats?.chess_rapid?.last?.rating  || 0;
-        const blitz  = stats?.chess_blitz?.last?.rating  || 0;
-        const bullet = stats?.chess_bullet?.last?.rating || 0;
-        const top    = Math.max(rapid, blitz, bullet);
-        const format = top === rapid ? 'Rapid' : top === blitz ? 'Blitz' : 'Bullet';
-
-        if (top > bestRating) {
-          bestRating = top;
-          best = { username: member.username, rating: top, format };
-        }
-      } catch { /* skip member */ }
-    }
-
-    if (!best) {
-      card.innerHTML = `<div class="empty-state" style="width:100%">Player of the Month — coming soon.</div>`;
-      return;
-    }
-
-    // Fetch avatar
-    let avatarHtml = `<div class="potm-avatar-placeholder">♛</div>`;
-    try {
-      await sleep(CONFIG.ENRICH_DELAY_MS);
-      const player = await apiFetch(
-        `${CONFIG.API_BASE}/player/${best.username}`,
-        `player:${best.username}`,
-        CONFIG.TTL.PLAYER
-      );
-      if (player.avatar) {
-        avatarHtml = `<img class="potm-avatar" src="${escHtml(player.avatar)}" alt="${escHtml(best.username)}">`;
-      }
-    } catch { /* silent */ }
-
-    const now     = new Date();
-    const monthNm = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-
-    card.innerHTML = `
-      ${avatarHtml}
-      <div class="potm-info">
-        <div class="potm-name">${escHtml(best.username)}</div>
-        <div class="potm-rating">${escHtml(best.format)} ${Number(best.rating).toLocaleString()}</div>
-        <div class="potm-month">${escHtml(monthNm)}</div>
-      </div>
-    `;
-  } catch {
-    card.innerHTML = `<div class="empty-state" style="width:100%">Player of the Month — coming soon.</div>`;
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  SECTION 4 — GAME OF THE MONTH
+//  SECTION 4 — GAME OF THE MONTH  (live-computed)
 // ═══════════════════════════════════════════════════════════════════
 async function loadGameOfMonth() {
   const card = document.getElementById('gotm-card');
 
-  try {
-    const resp = await fetch('data/game-of-month.json');
-    if (!resp.ok) throw new Error('no file');
-    const gotm = await resp.json();
+  card.innerHTML = `<div class="skeleton-block skeleton" style="height:220px;border-radius:8px"></div>`;
 
-    if (!gotm || !gotm.white) {
-      card.innerHTML = `<div class="empty-state">This month's finest game — coming soon.</div>`;
+  try {
+    const { gotm } = await getMonthlyData();
+    if (!gotm) {
+      card.innerHTML = `<div class="empty-state">No games found for ${MONTH_LABEL} yet.</div>`;
       return;
     }
-
-    const resultDisplay =
-      gotm.result === '1-0' ? '1–0' :
-      gotm.result === '0-1' ? '0–1' : '½–½';
-
-    card.innerHTML = `
-      <div class="gotm-matchup">
-        <div class="gotm-player">
-          <div class="gotm-player-name" title="${escHtml(gotm.white)}">${escHtml(gotm.white)}</div>
-          <div class="gotm-player-color">White</div>
-        </div>
-        <div class="gotm-vs">${resultDisplay}</div>
-        <div class="gotm-player">
-          <div class="gotm-player-name" title="${escHtml(gotm.black)}">${escHtml(gotm.black)}</div>
-          <div class="gotm-player-color">Black</div>
-        </div>
-      </div>
-      <div class="gotm-board-wrap">
-        <div id="gotm-board"></div>
-      </div>
-      ${gotm.blurb ? `<p class="gotm-blurb">"${escHtml(gotm.blurb)}"</p>` : ''}
-      <a class="gotm-replay-btn"
-         href="${escHtml(gotm.url || 'https://www.chess.com/games')}"
-         target="_blank"
-         rel="noopener noreferrer"
-         id="gotm-replay-link">
-        ▶ &nbsp;Replay on Chess.com
-      </a>
-    `;
-
-    renderChessBoard(gotm.fen, gotm.pgn);
-
-  } catch {
-    card.innerHTML = `<div class="empty-state">This month's finest game — coming soon.</div>`;
+    renderGotmCard(card, gotm);
+  } catch (e) {
+    console.error('[Elegance] GOTM failed:', e);
+    card.innerHTML = `<div class="empty-state">Game of the Month could not be computed.</div>`;
   }
 }
 
+function renderGotmCard(card, gotm) {
+  const resultDisplay =
+    gotm.result === '1-0' ? '1–0' :
+    gotm.result === '0-1' ? '0–1' : '½–½';
+
+  const whiteRatingStr = gotm.whiteRating ? `<span class="gotm-player-rating">${gotm.whiteRating}</span>` : '';
+  const blackRatingStr = gotm.blackRating ? `<span class="gotm-player-rating">${gotm.blackRating}</span>` : '';
+
+  card.innerHTML = `
+    <div class="gotm-matchup">
+      <div class="gotm-player">
+        <div class="gotm-player-name" title="${escHtml(gotm.white)}">${escHtml(gotm.white)}</div>
+        ${whiteRatingStr}
+        <div class="gotm-player-color">White</div>
+      </div>
+      <div class="gotm-vs">${resultDisplay}</div>
+      <div class="gotm-player">
+        <div class="gotm-player-name" title="${escHtml(gotm.black)}">${escHtml(gotm.black)}</div>
+        ${blackRatingStr}
+        <div class="gotm-player-color">Black</div>
+      </div>
+    </div>
+    <div class="gotm-board-wrap">
+      <div id="gotm-board"></div>
+    </div>
+    <p class="gotm-blurb">"${gotm.blurb}"</p>
+    <a class="gotm-replay-btn"
+       href="${escHtml(gotm.url)}"
+       target="_blank"
+       rel="noopener noreferrer"
+       id="gotm-replay-link">
+      ▶ &nbsp;Replay on Chess.com
+    </a>
+  `;
+
+  renderChessBoard(gotm.fen, '');
+}
+
 // ── SVG CHESS BOARD RENDERER (no external deps) ─────────────────
-// Maps FEN piece codes to Unicode chess glyphs
 const PIECE_GLYPHS = {
   K:'♔', Q:'♕', R:'♖', B:'♗', N:'♘', P:'♙',
   k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟',
@@ -555,7 +741,6 @@ function renderChessBoard(fen, pgn) {
   let position = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
 
   if (fen && fen.trim()) {
-    // FEN has multiple parts — we only need the first (piece placement)
     position = fen.trim().split(' ')[0];
   } else if (pgn && pgn.trim() && typeof Chess !== 'undefined') {
     try {
@@ -567,26 +752,21 @@ function renderChessBoard(fen, pgn) {
     }
   }
 
-  // Parse FEN piece placement into an 8×8 grid
-  const rows = position.split('/');
-  const grid = rows.map(row => {
+  const rows   = position.split('/');
+  const grid   = rows.map(row => {
     const cells = [];
     for (const ch of row) {
-      if (/\d/.test(ch)) {
-        for (let i = 0; i < parseInt(ch); i++) cells.push('');
-      } else {
-        cells.push(ch);
-      }
+      if (/\d/.test(ch)) for (let i = 0; i < parseInt(ch); i++) cells.push('');
+      else cells.push(ch);
     }
     return cells;
   });
 
-  // Colours matching the Elegance design system
   const LIGHT_SQ = '#E4D9BF';
   const DARK_SQ  = '#2C2417';
   const WHITE_PC = '#F5F1E8';
   const BLACK_PC = '#1A1208';
-  const SQ_SIZE  = 36; // each square in px
+  const SQ_SIZE  = 36;
   const BOARD    = SQ_SIZE * 8;
 
   const svgNS = 'http://www.w3.org/2000/svg';
@@ -602,7 +782,6 @@ function renderChessBoard(fen, pgn) {
       const x = f * SQ_SIZE;
       const y = r * SQ_SIZE;
 
-      // Square background
       const rect = document.createElementNS(svgNS, 'rect');
       rect.setAttribute('x', x);
       rect.setAttribute('y', y);
@@ -611,20 +790,18 @@ function renderChessBoard(fen, pgn) {
       rect.setAttribute('fill', isLight ? LIGHT_SQ : DARK_SQ);
       svg.appendChild(rect);
 
-      // Piece
       const piece = grid[r]?.[f] || '';
       if (piece) {
-        const glyph = PIECE_GLYPHS[piece];
+        const glyph   = PIECE_GLYPHS[piece];
         const isWhite = piece === piece.toUpperCase();
         if (glyph) {
           const text = document.createElementNS(svgNS, 'text');
           text.setAttribute('x',   x + SQ_SIZE / 2);
           text.setAttribute('y',   y + SQ_SIZE / 2 + 1);
-          text.setAttribute('text-anchor',   'middle');
-          text.setAttribute('dominant-baseline', 'central');
-          text.setAttribute('font-size',     SQ_SIZE * 0.72);
-          text.setAttribute('fill', isWhite ? WHITE_PC : BLACK_PC);
-          // Stroke gives pieces contrast on any square colour
+          text.setAttribute('text-anchor',        'middle');
+          text.setAttribute('dominant-baseline',  'central');
+          text.setAttribute('font-size',          SQ_SIZE * 0.72);
+          text.setAttribute('fill',   isWhite ? WHITE_PC : BLACK_PC);
           text.setAttribute('stroke', isWhite ? '#6B5D3A' : '#C9A959');
           text.setAttribute('stroke-width', '0.4');
           text.setAttribute('paint-order', 'stroke');
@@ -635,21 +812,19 @@ function renderChessBoard(fen, pgn) {
     }
   }
 
-  // Thin gold border around the board
   const border = document.createElementNS(svgNS, 'rect');
-  border.setAttribute('x', '0.5');
-  border.setAttribute('y', '0.5');
-  border.setAttribute('width',  BOARD - 1);
-  border.setAttribute('height', BOARD - 1);
-  border.setAttribute('fill',   'none');
-  border.setAttribute('stroke', '#C9A959');
+  border.setAttribute('x',       '0.5');
+  border.setAttribute('y',       '0.5');
+  border.setAttribute('width',   BOARD - 1);
+  border.setAttribute('height',  BOARD - 1);
+  border.setAttribute('fill',    'none');
+  border.setAttribute('stroke',  '#C9A959');
   border.setAttribute('stroke-width', '1');
   svg.appendChild(border);
 
   container.innerHTML = '';
   container.appendChild(svg);
 }
-
 
 // ═══════════════════════════════════════════════════════════════════
 //  SECTIONS 5 + 6 + 7 — MATCHES (Vote + Daily + Upcoming)
@@ -665,34 +840,27 @@ async function loadMatches() {
   const registered = data.registered  || [];
   const finished   = data.finished    || [];
 
-  // Classify Vote Chess by name containing "vote" (case-insensitive)
-  const isVote = (m) => /vote/i.test(m.name || '');
-
-  const voteActive  = [...inProgress.filter(isVote), ...registered.filter(isVote)];
+  const isVote     = (m) => /vote/i.test(m.name || '');
+  const voteActive = [...inProgress.filter(isVote), ...registered.filter(isVote)];
   const dailyInProg = inProgress.filter((m) => !isVote(m));
   const dailyReg    = registered.filter((m) => !isVote(m));
   const dailyFin    = finished.filter((m)   => !isVote(m)).slice(0, CONFIG.MAX_FINISHED);
 
   renderVoteChess(voteActive);
   renderDailyMatches(dailyInProg, dailyReg, dailyFin);
-
-  // Upcoming events merges registered matches + manual events.json
   await renderUpcomingEvents(registered);
 }
 
 function renderVoteChess(matches) {
   const container = document.getElementById('vote-list');
-
   if (!matches.length) {
     container.innerHTML = `<div class="empty-state">No active Vote Chess matches.</div>`;
     return;
   }
 
   container.innerHTML = '';
-  const shown = matches.slice(0, CONFIG.MAX_VOTE);
-
-  shown.forEach((m, i) => {
-    const isLive  = inProgressUrl(m);
+  matches.slice(0, CONFIG.MAX_VOTE).forEach((m, i) => {
+    const isLive  = /\/in-progress\//i.test(m['@id'] || '');
     const oppName = getOpponentName(m);
     const card    = document.createElement('div');
     card.className = 'match-card';
@@ -718,7 +886,7 @@ function renderVoteChess(matches) {
 
   if (matches.length > CONFIG.MAX_VOTE) {
     const more = document.createElement('div');
-    more.className = 'empty-state';
+    more.className   = 'empty-state';
     more.style.marginTop = '4px';
     more.textContent = `+${matches.length - CONFIG.MAX_VOTE} more vote chess match${matches.length - CONFIG.MAX_VOTE > 1 ? 'es' : ''}`;
     container.appendChild(more);
@@ -727,7 +895,6 @@ function renderVoteChess(matches) {
 
 function renderDailyMatches(inProg, registered, finished) {
   const container = document.getElementById('matches-list');
-
   if (!inProg.length && !registered.length && !finished.length) {
     container.innerHTML = `<div class="empty-state">No active daily matches.</div>`;
     return;
@@ -735,63 +902,46 @@ function renderDailyMatches(inProg, registered, finished) {
 
   container.innerHTML = '';
   const wrap = document.createElement('div');
-  wrap.style.display = 'flex';
-  wrap.style.flexDirection = 'column';
-  wrap.style.gap = '8px';
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px';
 
-  // In-progress bucket
   if (inProg.length) {
     const row = document.createElement('div');
     row.className = 'match-bucket-row';
     row.innerHTML = `
-      <span class="match-bucket-label">
-        <span class="badge badge--live">In Progress</span>
-      </span>
+      <span class="match-bucket-label"><span class="badge badge--live">In Progress</span></span>
       <span class="match-bucket-count">${inProg.length}</span>
     `;
     wrap.appendChild(row);
 
-    // Show up to 3 opponent names
     inProg.slice(0, 3).forEach((m) => {
       const card = document.createElement('div');
       card.className = 'match-card';
-      card.style.marginTop = '-4px';
-      card.style.borderTop = 'none';
-      card.style.borderRadius = '0 0 10px 10px';
-      card.innerHTML = `
-        <div class="match-opponent">vs ${escHtml(getOpponentName(m))}</div>
-      `;
+      card.style.cssText = 'margin-top:-4px;border-top:none;border-radius:0 0 10px 10px';
+      card.innerHTML = `<div class="match-opponent">vs ${escHtml(getOpponentName(m))}</div>`;
       wrap.appendChild(card);
     });
   }
 
-  // Registered bucket
   if (registered.length) {
     const row = document.createElement('div');
     row.className = 'match-bucket-row';
     row.innerHTML = `
-      <span class="match-bucket-label">
-        <span class="badge badge--registered">Registered</span>
-      </span>
+      <span class="match-bucket-label"><span class="badge badge--registered">Registered</span></span>
       <span class="match-bucket-count">${registered.length}</span>
     `;
     wrap.appendChild(row);
   }
 
-  // Recent finished
   if (finished.length) {
-    const header = document.createElement('div');
-    header.style.cssText = 'font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--ivory-faint);padding:4px 2px 2px;font-weight:500;';
-    header.textContent = 'Recent Results';
-    wrap.appendChild(header);
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--ivory-faint);padding:4px 2px 2px;font-weight:500';
+    hdr.textContent = 'Recent Results';
+    wrap.appendChild(hdr);
 
     finished.forEach((m) => {
-      const result = (m.result || '').toLowerCase();
-      const badgeClass = result === 'win'  ? 'badge--win'  :
-                         result === 'loss' ? 'badge--loss' : 'badge--draw';
-      const label      = result === 'win'  ? 'Win'  :
-                         result === 'loss' ? 'Loss' : 'Draw';
-
+      const result     = (m.result || '').toLowerCase();
+      const badgeClass = result === 'win' ? 'badge--win' : result === 'loss' ? 'badge--loss' : 'badge--draw';
+      const label      = result === 'win' ? 'Win' : result === 'loss' ? 'Loss' : 'Draw';
       const card = document.createElement('div');
       card.className = 'match-card';
       card.innerHTML = `
@@ -812,14 +962,12 @@ async function renderUpcomingEvents(registeredMatches) {
   const list = document.getElementById('events-list');
   list.innerHTML = '';
 
-  // Load manual events
   let manual = [];
   try {
     const resp = await fetch('data/events.json');
     if (resp.ok) manual = await resp.json();
-  } catch { /* OK — file optional */ }
+  } catch { /* optional file */ }
 
-  // Convert registered matches to event objects
   const matchEvents = registeredMatches
     .filter((m) => m.start_time || m.name)
     .map((m) => ({
@@ -830,7 +978,6 @@ async function renderUpcomingEvents(registeredMatches) {
       source:     'api',
     }));
 
-  // Merge & sort (null start_time goes last)
   const all = [...matchEvents, ...manual].sort((a, b) => {
     if (a.start_time && b.start_time) return a.start_time - b.start_time;
     if (a.start_time) return -1;
@@ -886,17 +1033,11 @@ async function renderUpcomingEvents(registeredMatches) {
   });
 }
 
-// Detect if match is in-progress based on its @id URL
-function inProgressUrl(match) {
-  return /\/in-progress\//i.test(match['@id'] || '');
-}
-
 // ═══════════════════════════════════════════════════════════════════
 //  SECTION 8 — DAILY PUZZLE
 // ═══════════════════════════════════════════════════════════════════
 async function loadPuzzle() {
   const card = document.getElementById('puzzle-card');
-
   try {
     const puzzle = await apiFetch(
       `${CONFIG.API_BASE}/puzzle`,
@@ -907,32 +1048,22 @@ async function loadPuzzle() {
     card.innerHTML = `
       ${puzzle.image ? `
         <a href="${escHtml(puzzle.url || 'https://www.chess.com/puzzles')}" target="_blank" rel="noopener noreferrer" id="puzzle-img-link">
-          <img class="puzzle-image"
-               src="${escHtml(puzzle.image)}"
-               alt="${escHtml(puzzle.title || 'Daily chess puzzle')}"
-               loading="lazy">
+          <img class="puzzle-image" src="${escHtml(puzzle.image)}" alt="${escHtml(puzzle.title || 'Daily chess puzzle')}" loading="lazy">
         </a>
       ` : ''}
       ${puzzle.title ? `<div class="puzzle-title">${escHtml(puzzle.title)}</div>` : ''}
       <p class="puzzle-sub">Study the position, then solve on Chess.com.</p>
       <a class="puzzle-link"
          href="${escHtml(puzzle.url || 'https://www.chess.com/puzzles')}"
-         target="_blank"
-         rel="noopener noreferrer"
+         target="_blank" rel="noopener noreferrer"
          id="puzzle-solve-link">
         ▶ &nbsp;Solve Today's Puzzle
       </a>
     `;
   } catch {
     card.innerHTML = `
-      <p class="puzzle-sub" style="font-style:italic; color:var(--ivory-faint)">
-        Today's puzzle could not be loaded.
-      </p>
-      <a class="puzzle-link"
-         href="https://www.chess.com/puzzles"
-         target="_blank"
-         rel="noopener noreferrer"
-         id="puzzle-fallback-link">
+      <p class="puzzle-sub" style="font-style:italic;color:var(--ivory-faint)">Today's puzzle could not be loaded.</p>
+      <a class="puzzle-link" href="https://www.chess.com/puzzles" target="_blank" rel="noopener noreferrer" id="puzzle-fallback-link">
         ▶ &nbsp;Browse Puzzles
       </a>
     `;
@@ -940,31 +1071,27 @@ async function loadPuzzle() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  FOOTER — REFRESH TIMESTAMP
+//  FOOTER
 // ═══════════════════════════════════════════════════════════════════
 function updateFooter() {
   const el = document.getElementById('footer-refresh');
   if (!el) return;
-
-  const now = Math.floor(Date.now() / 1000);
-  el.textContent = `Refreshed ${relativeTime(now)}`;
-
-  // Tick every minute
-  setTimeout(updateFooter, 60_000);
+  el.textContent = `Refreshed just now`;
+  setTimeout(() => {
+    if (el) el.textContent = `Refreshed ${relativeTime(Math.floor(Date.now() / 1000))}`;
+  }, 60_000);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  INIT — orchestrate all sections
+//  INIT
 // ═══════════════════════════════════════════════════════════════════
 async function init() {
-  // Header loads first (it's above the fold)
   try {
     await loadHeader();
   } catch (e) {
     console.error('[Elegance] Header failed:', e);
   }
 
-  // All other sections run concurrently (each section handles its own errors)
   await Promise.allSettled([
     loadJoiners(),
     loadPlayerOfMonth(),
@@ -976,7 +1103,6 @@ async function init() {
   updateFooter();
 }
 
-// Kick off when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
