@@ -31,9 +31,9 @@ const CONFIG = {
   useProxy:  false,
 
   TTL: {
-    CLUB:      5 * 60 * 1000, //  5 min
-    MEMBERS:   5 * 60 * 1000, //  5 min
-    MATCHES:   5 * 60 * 1000, //  5 min
+    CLUB:      60 * 1000,          //  1 min
+    MEMBERS:   30 * 1000,          // 30 sec (fast refresh for new joiners!)
+    MATCHES:   60 * 1000,          //  1 min
     PLAYER:    6 * 60 * 60 * 1000, //  6 h
     STATS:     6 * 60 * 60 * 1000, //  6 h
     PUZZLE:   24 * 60 * 60 * 1000, // 24 h
@@ -87,8 +87,8 @@ const cache = {
 // ═══════════════════════════════════════════════════════════════════
 //  FETCH HELPER  (CORS-proxy auto-fallback)
 // ═══════════════════════════════════════════════════════════════════
-async function apiFetch(url, cacheKey = null, ttl = 0) {
-  if (cacheKey) {
+async function apiFetch(url, cacheKey = null, ttl = 0, bypassCache = false) {
+  if (cacheKey && !bypassCache) {
     const hit = cache.get(cacheKey);
     if (hit !== null) return hit;
   }
@@ -512,23 +512,31 @@ async function loadHeader() {
 // ═══════════════════════════════════════════════════════════════════
 //  SECTION 2 — NEW TO THE CLUB
 // ═══════════════════════════════════════════════════════════════════
-async function loadJoiners() {
+async function loadJoiners(isAutoRefresh = false, bypassCache = false) {
   const list = document.getElementById('joiners-list');
-  list.innerHTML = skeletonMemberList(CONFIG.MAX_JOINERS);
+  if (!isAutoRefresh && (!list.children.length || list.querySelector('.empty-state'))) {
+    list.innerHTML = skeletonMemberList(CONFIG.MAX_JOINERS);
+  }
 
   const membersData = await apiFetch(
     `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
     'club:members',
-    CONFIG.TTL.MEMBERS
+    CONFIG.TTL.MEMBERS,
+    bypassCache
   );
 
   const seen = new Set();
-  const combined = [...(membersData.weekly || []), ...(membersData.monthly || [])]
-    .filter(({ username }) => {
-      if (seen.has(username)) return false;
-      seen.add(username);
-      return true;
-    });
+  const combined = [
+    ...(membersData.weekly || []),
+    ...(membersData.monthly || []),
+    ...(membersData.all_time || [])
+  ].filter(({ username }) => {
+    if (!username) return false;
+    const lower = username.toLowerCase();
+    if (seen.has(lower)) return false;
+    seen.add(lower);
+    return true;
+  });
 
   const recent = combined
     .sort((a, b) => (b.joined || 0) - (a.joined || 0))
@@ -541,16 +549,17 @@ async function loadJoiners() {
 
   list.innerHTML = '';
   recent.forEach((member, i) => {
+    const cleanUser = member.username.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
     const li = document.createElement('li');
     li.className = 'member-item';
     li.style.animationDelay = `${i * 0.08}s`;
-    li.id = `member-row-${i}`;
+    li.id = `member-row-${cleanUser}`;
     li.innerHTML = `
-      <div class="member-avatar-placeholder" id="member-ph-${i}">
+      <div class="member-avatar-placeholder" id="member-ph-${cleanUser}">
         ${escHtml(member.username.charAt(0).toUpperCase())}
       </div>
       <div class="member-info">
-        <div class="member-name" id="member-name-${i}">${escHtml(member.username)}</div>
+        <div class="member-name" id="member-name-${cleanUser}">${escHtml(member.username)}</div>
         <div class="member-time">
           ${member.joined ? relativeTime(member.joined) : 'Recently joined'}
         </div>
@@ -561,11 +570,11 @@ async function loadJoiners() {
 
   for (let i = 0; i < Math.min(recent.length, CONFIG.MAX_ENRICH); i++) {
     await sleep(CONFIG.ENRICH_DELAY_MS);
-    await enrichMemberRow(recent[i].username, i);
+    await enrichMemberRow(recent[i].username);
   }
 }
 
-async function enrichMemberRow(username, idx) {
+async function enrichMemberRow(username) {
   try {
     const player = await apiFetch(
       `${CONFIG.API_BASE}/player/${username}`,
@@ -573,9 +582,10 @@ async function enrichMemberRow(username, idx) {
       CONFIG.TTL.PLAYER
     );
 
-    const ph     = document.getElementById(`member-ph-${idx}`);
-    const nameEl = document.getElementById(`member-name-${idx}`);
-    const row    = document.getElementById(`member-row-${idx}`);
+    const cleanUser = username.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    const ph     = document.getElementById(`member-ph-${cleanUser}`);
+    const nameEl = document.getElementById(`member-name-${cleanUser}`);
+    const row    = document.getElementById(`member-row-${cleanUser}`);
     if (!ph || !nameEl || !row) return;
 
     if (player.avatar) {
@@ -602,11 +612,14 @@ async function enrichMemberRow(username, idx) {
       const code = player.country.split('/').pop().toUpperCase();
       const flag = countryCodeToFlag(code);
       if (flag) {
-        const span = document.createElement('span');
-        span.className   = 'member-country';
+        let span = row.querySelector('.member-country');
+        if (!span) {
+          span = document.createElement('span');
+          span.className = 'member-country';
+          row.appendChild(span);
+        }
         span.textContent = flag;
         span.title       = code;
-        row.appendChild(span);
       }
     }
   } catch { /* silent */ }
@@ -1184,21 +1197,58 @@ async function loadMasterclass() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  FOOTER
+//  FOOTER & MANUAL SYNC
 // ═══════════════════════════════════════════════════════════════════
+let _lastRefreshTime = Math.floor(Date.now() / 1000);
+let _footerTimer = null;
+
 function updateFooter() {
+  _lastRefreshTime = Math.floor(Date.now() / 1000);
   const el = document.getElementById('footer-refresh');
   if (!el) return;
-  el.textContent = `Refreshed just now`;
-  setTimeout(() => {
-    if (el) el.textContent = `Refreshed ${relativeTime(Math.floor(Date.now() / 1000))}`;
-  }, 60_000);
+  
+  el.style.cursor = 'pointer';
+  el.title = 'Click to force refresh live sections';
+  el.innerHTML = `↻ Refreshed just now`;
+  
+  if (_footerTimer) clearInterval(_footerTimer);
+  _footerTimer = setInterval(() => {
+    if (el) el.innerHTML = `↻ Refreshed ${relativeTime(_lastRefreshTime)}`;
+  }, 10_000);
+}
+
+async function triggerManualRefresh() {
+  const el = document.getElementById('footer-refresh');
+  if (el) el.innerHTML = `↻ Syncing live data…`;
+  
+  // Clear members local cache key to force fresh API payload
+  try { localStorage.removeItem('elegance:club:members'); } catch {}
+  
+  await Promise.allSettled([
+    loadHeader(),
+    loadActivePulse(),
+    loadJoiners(true, true),
+    loadEliteRoster(),
+    loadMatches(),
+  ]);
+  
+  updateFooter();
 }
 
 // ═══════════════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 async function init() {
+  // Clear any existing stale members cache key on startup
+  try { localStorage.removeItem('elegance:club:members'); } catch {}
+
+  const footerEl = document.getElementById('footer-refresh');
+  if (footerEl) {
+    footerEl.addEventListener('click', () => {
+      triggerManualRefresh();
+    });
+  }
+
   try {
     await loadHeader();
   } catch (e) {
@@ -1207,7 +1257,7 @@ async function init() {
 
   await Promise.allSettled([
     loadActivePulse(),
-    loadJoiners(),
+    loadJoiners(false, true),
     loadPlayerOfMonth(),
     loadGameOfMonth(),
     loadEliteRoster(),
@@ -1218,12 +1268,18 @@ async function init() {
 
   updateFooter();
 
-  // Auto-refresh dynamic sections every 60 seconds
+  // Auto-refresh Joiners & Live Pulse every 30 seconds
+  setInterval(async () => {
+    await Promise.allSettled([
+      loadActivePulse(),
+      loadJoiners(true, true),
+    ]);
+  }, 30 * 1000);
+
+  // Auto-refresh Header, Roster, Hall of Fame & Matches every 60 seconds
   setInterval(async () => {
     try { await loadHeader(); } catch (e) {}
     await Promise.allSettled([
-      loadActivePulse(),
-      loadJoiners(),
       loadEliteRoster(),
       loadHallOfFame(),
       loadMatches(),
