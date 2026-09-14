@@ -94,7 +94,10 @@ async function apiFetch(url, cacheKey = null, ttl = 0, bypassCache = false) {
   }
 
   const attempt = async (targetUrl) => {
-    const res = await fetch(targetUrl, { headers: { Accept: 'application/json' } });
+    if (bypassCache) {
+      targetUrl += (targetUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+    }
+    const res = await fetch(targetUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status} — ${targetUrl}`);
     return res.json();
   };
@@ -747,12 +750,83 @@ function renderGotmCard(card, gotm) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  REAL-TIME MEMBER PROFILES (for Pulse, Roster, HoF)
+// ═══════════════════════════════════════════════════════════════════
+let _activeProfilesCache = null;
+let _activeProfilesTime = 0;
+
+async function getActiveProfiles(bypassCache = false) {
+  if (!bypassCache && _activeProfilesCache && Date.now() - _activeProfilesTime < CONFIG.TTL.MEMBERS) {
+    return _activeProfilesCache;
+  }
+  // Debounce multiple concurrent calls in the same refresh tick
+  if (bypassCache && _activeProfilesCache && Date.now() - _activeProfilesTime < 5000) {
+    return _activeProfilesCache;
+  }
+
+  const membersData = await apiFetch(
+    `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
+    'club:members',
+    CONFIG.TTL.MEMBERS,
+    bypassCache
+  );
+  
+  const combined = [
+    ...(membersData.weekly || []),
+    ...(membersData.monthly || []),
+    ...(membersData.all_time || [])
+  ];
+  
+  const seen = new Set();
+  const unique = [];
+  for (const m of combined) {
+    if (!m.username) continue;
+    const lower = m.username.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      unique.push(m.username);
+    }
+  }
+  
+  const candidates = unique.slice(0, CONFIG.MAX_CANDIDATES);
+  const profiles = [];
+  
+  for (const username of candidates) {
+    await sleep(CONFIG.ENRICH_DELAY_MS);
+    try {
+      const player = await apiFetch(`${CONFIG.API_BASE}/player/${username}`, `player:${username}`, CONFIG.TTL.PLAYER);
+      const stats = await apiFetch(`${CONFIG.API_BASE}/player/${username}/stats`, `stats:${username}`, CONFIG.TTL.STATS);
+      
+      let rating = 0;
+      if (stats) {
+        const rapid  = stats.chess_rapid?.last?.rating  || 0;
+        const blitz  = stats.chess_blitz?.last?.rating  || 0;
+        const bullet = stats.chess_bullet?.last?.rating || 0;
+        rating = Math.max(rapid, blitz, bullet);
+      }
+      
+      profiles.push({
+        username: player.username || username,
+        avatar: player.avatar || null,
+        title: player.title || null,
+        url: player.url,
+        rating
+      });
+    } catch { /* silent */ }
+  }
+  
+  _activeProfilesCache = profiles;
+  _activeProfilesTime = Date.now();
+  return profiles;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  THE ELITE ROSTER (Top 3)
 // ═══════════════════════════════════════════════════════════════════
-async function loadEliteRoster() {
+async function loadEliteRoster(bypassCache = false) {
   const list = document.getElementById('elite-list');
   try {
-    const { activeProfiles } = await getMonthlyData();
+    const activeProfiles = await getActiveProfiles(bypassCache);
     const sorted = [...activeProfiles]
       .filter(p => p.rating > 0)
       .sort((a, b) => b.rating - a.rating)
@@ -794,10 +868,10 @@ async function loadEliteRoster() {
 // ═══════════════════════════════════════════════════════════════════
 //  HALL OF FAME (Titled Members)
 // ═══════════════════════════════════════════════════════════════════
-async function loadHallOfFame() {
+async function loadHallOfFame(bypassCache = false) {
   const grid = document.getElementById('hof-grid');
   try {
-    const { activeProfiles } = await getMonthlyData();
+    const activeProfiles = await getActiveProfiles(bypassCache);
     const titled = activeProfiles.filter(p => p.title).sort((a, b) => b.rating - a.rating);
 
     if (!titled.length) {
@@ -833,12 +907,12 @@ async function loadHallOfFame() {
 // ═══════════════════════════════════════════════════════════════════
 //  ACTIVE CLUB PULSE
 // ═══════════════════════════════════════════════════════════════════
-async function loadActivePulse() {
+async function loadActivePulse(bypassCache = false) {
   const pulseNode = document.getElementById('club-pulse');
   const textNode  = document.getElementById('pulse-text');
   if (!pulseNode || !textNode) return;
   try {
-    const { activeProfiles } = await getMonthlyData();
+    const activeProfiles = await getActiveProfiles(bypassCache);
     const top5 = activeProfiles.slice(0, 5);
     
     let isLive = false;
@@ -1278,7 +1352,7 @@ async function init() {
   // Auto-refresh Joiners & Live Pulse every 30 seconds
   setInterval(async () => {
     await Promise.allSettled([
-      loadActivePulse(),
+      loadActivePulse(true),
       loadJoiners(true, true),
     ]);
   }, 30 * 1000);
@@ -1287,8 +1361,8 @@ async function init() {
   setInterval(async () => {
     try { await loadHeader(true); } catch (e) {}
     await Promise.allSettled([
-      loadEliteRoster(),
-      loadHallOfFame(),
+      loadEliteRoster(true),
+      loadHallOfFame(true),
       loadMatches(),
     ]);
     updateFooter();
