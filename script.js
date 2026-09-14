@@ -293,8 +293,8 @@ function getMonthlyData() {
  * Results are cached for 6 hours under key `monthly:{MONTH_KEY}`.
  */
 async function computeMonthlyData() {
-  // Return cached monthly result if available
-  const cacheKey = `monthly:${MONTH_KEY}`;
+  // Return cached monthly result if available (v2 forces cache bypass for the move-count fix)
+  const cacheKey = `monthly:v2:${MONTH_KEY}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
