@@ -521,6 +521,69 @@ async function computeMonthlyData() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  ETERNAL TORCH & EXISTENCE TIMER LOGIC
+// ═══════════════════════════════════════════════════════════════════
+let _torchTimerInterval = null;
+
+function initClubTorchTimer(createdSec) {
+  if (!createdSec) return;
+
+  const createdMs = createdSec * 1000;
+  const createdDate = new Date(createdMs);
+
+  const sinceTagEl = document.getElementById('torch-since-tag');
+  if (sinceTagEl) {
+    const monthYear = createdDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    sinceTagEl.textContent = `Burning continuously since ${monthYear}`;
+  }
+
+  const updateTimer = () => {
+    const now = new Date();
+    let years = now.getFullYear() - createdDate.getFullYear();
+    let anniversary = new Date(createdMs);
+    anniversary.setFullYear(now.getFullYear());
+
+    if (now < anniversary) {
+      years--;
+      anniversary.setFullYear(now.getFullYear() - 1);
+    }
+
+    const MS_PER_SEC  = 1000;
+    const MS_PER_MIN  = 60 * MS_PER_SEC;
+    const MS_PER_HOUR = 60 * MS_PER_MIN;
+    const MS_PER_DAY  = 24 * MS_PER_HOUR;
+
+    let remainingMs = Math.max(0, now - anniversary);
+    const days  = Math.floor(remainingMs / MS_PER_DAY);
+    remainingMs %= MS_PER_DAY;
+
+    const hours = Math.floor(remainingMs / MS_PER_HOUR);
+    remainingMs %= MS_PER_HOUR;
+
+    const mins  = Math.floor(remainingMs / MS_PER_MIN);
+    remainingMs %= MS_PER_MIN;
+
+    const secs  = Math.floor(remainingMs / MS_PER_SEC);
+
+    const yrsEl   = document.getElementById('timer-years');
+    const daysEl  = document.getElementById('timer-days');
+    const hoursEl = document.getElementById('timer-hours');
+    const minsEl  = document.getElementById('timer-mins');
+    const secsEl  = document.getElementById('timer-secs');
+
+    if (yrsEl)   yrsEl.textContent   = String(years);
+    if (daysEl)  daysEl.textContent  = String(days).padStart(3, '0');
+    if (hoursEl) hoursEl.textContent = String(hours).padStart(2, '0');
+    if (minsEl)  minsEl.textContent  = String(mins).padStart(2, '0');
+    if (secsEl)  secsEl.textContent  = String(secs).padStart(2, '0');
+  };
+
+  updateTimer();
+  if (_torchTimerInterval) clearInterval(_torchTimerInterval);
+  _torchTimerInterval = setInterval(updateTimer, 1000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  SECTION 1 — CLUB HEADER
 // ═══════════════════════════════════════════════════════════════════
 async function loadHeader(bypassCache = false) {
@@ -552,6 +615,10 @@ async function loadHeader(bypassCache = false) {
     <span class="sep">·</span>
     Est. ${escHtml(String(year))}
   `;
+
+  if (data.created) {
+    initClubTorchTimer(data.created);
+  }
 
   if (data.description && data.description.trim()) {
     const tmp = document.createElement('div');

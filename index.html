@@ -38,6 +38,74 @@
           </p>
         </div>
       </div>
+
+      <!-- ════════════════════════════ ETERNAL TORCH & EXISTENCE TIMER ══ -->
+      <div class="torch-widget" id="torch-widget" aria-label="Club existence eternal flame timer">
+        <div class="torch-glow-ambient" aria-hidden="true"></div>
+        <div class="torch-stage">
+          <div class="torch-flame-container">
+            <div class="torch-particle p1" aria-hidden="true"></div>
+            <div class="torch-particle p2" aria-hidden="true"></div>
+            <div class="torch-particle p3" aria-hidden="true"></div>
+            <div class="flame-layer flame-outer" aria-hidden="true"></div>
+            <div class="flame-layer flame-mid" aria-hidden="true"></div>
+            <div class="flame-layer flame-core" aria-hidden="true"></div>
+            <div class="flame-spark" aria-hidden="true"></div>
+          </div>
+          <!-- SVG Torch Sconce -->
+          <svg class="torch-sconce-svg" viewBox="0 0 60 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18 10 L42 10 L38 24 L22 24 Z" fill="url(#sconceGold)" stroke="#C9A959" stroke-width="1.2"/>
+            <path d="M22 24 L38 24 L34 38 L26 38 Z" fill="url(#sconceDark)" stroke="#8A7340" stroke-width="1"/>
+            <circle cx="30" cy="17" r="3" fill="#FFEAA7" opacity="0.85"/>
+            <path d="M26 38 L34 38 L30 48 Z" fill="#8A7340"/>
+            <defs>
+              <linearGradient id="sconceGold" x1="18" y1="10" x2="42" y2="24" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#E5C578"/>
+                <stop offset="0.5" stop-color="#C9A959"/>
+                <stop offset="1" stop-color="#8A7340"/>
+              </linearGradient>
+              <linearGradient id="sconceDark" x1="22" y1="24" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#2A2418"/>
+                <stop offset="1" stop-color="#151410"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <div class="torch-timer-meta">
+          <div class="torch-timer-heading">
+            <span class="torch-heading-flame" aria-hidden="true">🔥</span> ETERNAL CLUB FLAME
+          </div>
+          <div class="torch-timer-grid" id="torch-timer-grid" aria-live="polite">
+            <div class="timer-unit">
+              <span class="timer-val" id="timer-years">–</span>
+              <span class="timer-lbl">YRS</span>
+            </div>
+            <span class="timer-colon">:</span>
+            <div class="timer-unit">
+              <span class="timer-val" id="timer-days">–––</span>
+              <span class="timer-lbl">DAYS</span>
+            </div>
+            <span class="timer-colon">:</span>
+            <div class="timer-unit">
+              <span class="timer-val" id="timer-hours">––</span>
+              <span class="timer-lbl">HRS</span>
+            </div>
+            <span class="timer-colon">:</span>
+            <div class="timer-unit">
+              <span class="timer-val" id="timer-mins">––</span>
+              <span class="timer-lbl">MIN</span>
+            </div>
+            <span class="timer-colon">:</span>
+            <div class="timer-unit">
+              <span class="timer-val" id="timer-secs">––</span>
+              <span class="timer-lbl">SEC</span>
+            </div>
+          </div>
+          <div class="torch-since-tag" id="torch-since-tag">Calculating club longevity…</div>
+        </div>
+      </div>
+
       <p class="club-desc" id="club-desc"></p>
       <a class="club-link" id="club-link" href="https://www.chess.com/club/elegance" target="_blank" rel="noopener noreferrer">
         View Club on Chess.com <span aria-hidden="true">→</span>
