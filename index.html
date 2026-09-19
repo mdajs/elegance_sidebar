@@ -54,19 +54,19 @@
           </div>
           <!-- SVG Torch Sconce -->
           <svg class="torch-sconce-svg" viewBox="0 0 60 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M18 10 L42 10 L38 24 L22 24 Z" fill="url(#sconceGold)" stroke="#C9A959" stroke-width="1.2"/>
-            <path d="M22 24 L38 24 L34 38 L26 38 Z" fill="url(#sconceDark)" stroke="#8A7340" stroke-width="1"/>
-            <circle cx="30" cy="17" r="3" fill="#FFEAA7" opacity="0.85"/>
-            <path d="M26 38 L34 38 L30 48 Z" fill="#8A7340"/>
+            <path d="M18 10 L42 10 L38 24 L22 24 Z" fill="url(#sconceCyan)" stroke="#00ff88" stroke-width="1.2"/>
+            <path d="M22 24 L38 24 L34 38 L26 38 Z" fill="url(#sconceDark)" stroke="#00b35f" stroke-width="1"/>
+            <circle cx="30" cy="17" r="3" fill="#00ffff" opacity="0.9"/>
+            <path d="M26 38 L34 38 L30 48 Z" fill="#00b35f"/>
             <defs>
-              <linearGradient id="sconceGold" x1="18" y1="10" x2="42" y2="24" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#E5C578"/>
-                <stop offset="0.5" stop-color="#C9A959"/>
-                <stop offset="1" stop-color="#8A7340"/>
+              <linearGradient id="sconceCyan" x1="18" y1="10" x2="42" y2="24" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#00ffff"/>
+                <stop offset="0.5" stop-color="#00ff88"/>
+                <stop offset="1" stop-color="#0066ff"/>
               </linearGradient>
               <linearGradient id="sconceDark" x1="22" y1="24" x2="38" y2="38" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#2A2418"/>
-                <stop offset="1" stop-color="#151410"/>
+                <stop stop-color="#0b1d12"/>
+                <stop offset="1" stop-color="#030906"/>
               </linearGradient>
             </defs>
           </svg>
@@ -74,7 +74,7 @@
 
         <div class="torch-timer-meta">
           <div class="torch-timer-heading">
-            <span class="torch-heading-flame" aria-hidden="true">🔥</span> ETERNAL CLUB FLAME
+            <span class="torch-heading-flame" aria-hidden="true">💧</span> ETERNAL BLUE FLAME
           </div>
           <div class="torch-timer-grid" id="torch-timer-grid" aria-live="polite">
             <div class="timer-unit">
@@ -275,9 +275,45 @@
       </div>
     </section>
 
+    <!-- ════════════════════════════════════ EMERALD RADIO ══ -->
+    <section class="sidebar-section" id="section-radio">
+      <div class="section-header">
+        <span class="section-icon" aria-hidden="true">🎧</span>
+        <h2 class="section-title">Emerald Radio</h2>
+      </div>
+      <div class="radio-widget" id="radio-widget">
+        <div class="radio-header">
+          <div>
+            <div class="radio-track-title" id="radio-track-title">Midnight Chess Lofi Vol. 1</div>
+            <div class="radio-artist" id="radio-artist">Elegance Chill Beats</div>
+          </div>
+          <div class="radio-equalizer">
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+            <div class="eq-bar"></div>
+          </div>
+        </div>
+        <div class="radio-controls">
+          <button class="radio-btn" id="radio-prev-btn" title="Previous Track">⏮</button>
+          <button class="radio-btn" id="radio-play-btn" title="Play / Pause">▶</button>
+          <button class="radio-btn" id="radio-next-btn" title="Next Track">⏭</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════ ANIME QUOTE BANNER ══ -->
+    <section class="anime-quote-section" id="section-quote">
+      <div class="anime-quote-card">
+        <span class="quote-flame-icon">⚡</span>
+        <p class="anime-quote-body">“In silence, the king moves. In wisdom, victory is forged.”</p>
+        <span class="anime-quote-author">— ELEGANCE COUNCIL</span>
+      </div>
+    </section>
+
     <!-- ═════════════════════════════════════════ FOOTER ════ -->
     <footer class="sidebar-footer">
-      <span>Data via <a href="https://www.chess.com/news/view/published-data-api" target="_blank" rel="noopener noreferrer">Chess.com PubAPI</a></span>
       <span class="footer-refresh" id="footer-refresh" aria-live="polite">Refreshing…</span>
     </footer>
 
@@ -285,6 +321,6 @@
 
   <!-- chess.js: PGN/FEN parser (standalone, no jQuery) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-  <script src="script.js"></script>
+  <script src="script.js?v=lofi_v2"></script>
 </body>
 </html>

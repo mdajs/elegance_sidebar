@@ -1501,6 +1501,270 @@ async function triggerManualRefresh() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+//  EMERALD RADIO CONTROLLER & CUSTOM AUDIO LOADER
+//  To add your own audio files:
+//  1. Create an 'audio' folder inside e:\elegance_sidebar\ (e.g. e:\elegance_sidebar\audio\)
+//  2. Place your mp3 / wav files inside it (e.g. track1.mp3, track2.mp3)
+//  3. Update the track list below with your titles, artists, and filenames!
+// ═══════════════════════════════════════════════════════════════════
+const CUSTOM_TRACKS = [
+  {
+    title: 'Unstoppable Hope',
+    src: 'audio/track1.mp3'
+  },
+  {
+    title: 'Unworthy',
+    src: 'audio/track2.mp3'
+  },
+  {
+    title: 'Falling Leaf',
+    src: 'audio/track3.mp3'
+  },
+  {
+    title: 'Nostalgia',
+    src: 'audio/track4.mp3'
+  }
+];
+
+class LofiSynthEngine {
+  constructor() {
+    this.ctx = null;
+    this.isPlaying = false;
+    this.timer = null;
+    this.step = 0;
+    this.currentPreset = 0;
+
+    this.presets = [
+      {
+        name: 'Unstoppable Hope',
+        chords: [
+          [261.63, 329.63, 392.00, 493.88], // Cmaj7
+          [220.00, 261.63, 329.63, 392.00], // Am7
+          [174.61, 220.00, 261.63, 329.63], // Fmaj7
+          [196.00, 246.94, 293.66, 349.23]  // G7
+        ],
+        tempo: 2200
+      },
+      {
+        name: 'Unworthy',
+        chords: [
+          [146.83, 220.00, 261.63, 329.63], // Dm7
+          [164.81, 246.94, 293.66, 392.00], // Em7
+          [174.61, 261.63, 329.63, 440.00], // Fmaj7
+          [146.83, 220.00, 261.63, 329.63]  // Dm7
+        ],
+        tempo: 2600
+      },
+      {
+        name: 'Falling Leaf',
+        chords: [
+          [220.00, 277.18, 329.63, 415.30], // Amaj7
+          [185.00, 220.00, 277.18, 329.63], // F#m7
+          [146.83, 185.00, 220.00, 277.18], // Dmaj7
+          [164.81, 207.65, 246.94, 329.63]  // E7
+        ],
+        tempo: 2000
+      },
+      {
+        name: 'Nostalgia',
+        chords: [
+          [130.81, 196.00, 261.63, 329.63],
+          [146.83, 220.00, 293.66, 349.23],
+          [164.81, 246.94, 329.63, 392.00],
+          [130.81, 196.00, 261.63, 329.63]
+        ],
+        tempo: 2800
+      }
+    ];
+  }
+
+  initContext() {
+    if (!this.ctx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioContext();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  playChord(freqs) {
+    if (!this.ctx || !this.isPlaying) return;
+
+    const now = this.ctx.currentTime;
+    const masterGain = this.ctx.createGain();
+    masterGain.gain.setValueAtTime(0.001, now);
+    masterGain.gain.exponentialRampToValueAtTime(0.18, now + 0.15);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.9);
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(600, now);
+    filter.Q.setValueAtTime(2, now);
+
+    filter.connect(this.ctx.destination);
+    masterGain.connect(filter);
+
+    freqs.forEach((freq) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.detune.setValueAtTime((Math.random() - 0.5) * 8, now);
+      osc.connect(masterGain);
+      osc.start(now);
+      osc.stop(now + 2.0);
+    });
+
+    const bassOsc = this.ctx.createOscillator();
+    const bassGain = this.ctx.createGain();
+    bassOsc.type = 'triangle';
+    bassOsc.frequency.setValueAtTime(freqs[0] / 2, now);
+    bassGain.gain.setValueAtTime(0.001, now);
+    bassGain.gain.exponentialRampToValueAtTime(0.25, now + 0.1);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, now + 1.7);
+
+    bassOsc.connect(bassGain);
+    bassGain.connect(filter);
+    bassOsc.start(now);
+    bassOsc.stop(now + 1.8);
+  }
+
+  start() {
+    this.initContext();
+    this.isPlaying = true;
+    this.step = 0;
+    this.tick();
+  }
+
+  stop() {
+    this.isPlaying = false;
+    if (this.timer) clearTimeout(this.timer);
+  }
+
+  tick() {
+    if (!this.isPlaying) return;
+    const preset = this.presets[this.currentPreset % this.presets.length];
+    const chord = preset.chords[this.step % preset.chords.length];
+    this.playChord(chord);
+    this.step++;
+    this.timer = setTimeout(() => this.tick(), preset.tempo);
+  }
+
+  setPreset(idx) {
+    this.currentPreset = idx % this.presets.length;
+    this.step = 0;
+    if (this.isPlaying) {
+      if (this.timer) clearTimeout(this.timer);
+      this.tick();
+    }
+  }
+}
+
+const lofiEngine = new LofiSynthEngine();
+
+function initEmeraldRadio() {
+  let isPlaying = false;
+  let currentIdx = 0;
+  const audio = new Audio();
+
+  const titleEl  = document.getElementById('radio-track-title');
+  const artistEl = document.getElementById('radio-artist');
+  const playBtn  = document.getElementById('radio-play-btn');
+  const prevBtn  = document.getElementById('radio-prev-btn');
+  const nextBtn  = document.getElementById('radio-next-btn');
+  const eqBars   = document.querySelectorAll('.eq-bar');
+
+  const setEqState = (active) => {
+    eqBars.forEach((bar) => {
+      bar.style.animationPlayState = active ? 'running' : 'paused';
+    });
+  };
+  setEqState(false);
+
+  const updateTrackUI = () => {
+    const track = CUSTOM_TRACKS[currentIdx] || lofiEngine.presets[currentIdx];
+    if (titleEl)  titleEl.textContent  = track.title || track.name;
+    if (artistEl) {
+      if (track.artist) {
+        artistEl.textContent = track.artist;
+        artistEl.style.display = 'block';
+      } else {
+        artistEl.style.display = 'none';
+      }
+    }
+  };
+
+  const loadAndPlay = async () => {
+    const track = CUSTOM_TRACKS[currentIdx];
+    if (track && track.src) {
+      audio.src = track.src;
+      try {
+        await audio.play();
+        isPlaying = true;
+        if (playBtn) playBtn.textContent = '❚❚';
+        setEqState(true);
+        return;
+      } catch (e) {
+        console.info('[Radio] Local audio file not loaded yet or blocked. Playing Web Audio Synth fallback.');
+      }
+    }
+    // Web Audio Synth Fallback
+    lofiEngine.setPreset(currentIdx);
+    lofiEngine.start();
+    isPlaying = true;
+    if (playBtn) playBtn.textContent = '❚❚';
+    setEqState(true);
+  };
+
+  const stopAll = () => {
+    audio.pause();
+    lofiEngine.stop();
+    isPlaying = false;
+    if (playBtn) playBtn.textContent = '▶';
+    setEqState(false);
+  };
+
+  if (playBtn) {
+    playBtn.addEventListener('click', () => {
+      if (isPlaying) {
+        stopAll();
+      } else {
+        loadAndPlay();
+      }
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      const wasPlaying = isPlaying;
+      stopAll();
+      currentIdx = (currentIdx - 1 + CUSTOM_TRACKS.length) % CUSTOM_TRACKS.length;
+      updateTrackUI();
+      if (wasPlaying) loadAndPlay();
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const wasPlaying = isPlaying;
+      stopAll();
+      currentIdx = (currentIdx + 1) % CUSTOM_TRACKS.length;
+      updateTrackUI();
+      if (wasPlaying) loadAndPlay();
+    });
+  }
+
+  audio.addEventListener('ended', () => {
+    stopAll();
+    currentIdx = (currentIdx + 1) % CUSTOM_TRACKS.length;
+    updateTrackUI();
+    loadAndPlay();
+  });
+
+  updateTrackUI();
+}
+
+// ═══════════════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════════════
 async function init() {
@@ -1517,6 +1781,9 @@ async function init() {
       triggerManualRefresh();
     });
   }
+
+  // Emerald Radio Widget
+  initEmeraldRadio();
 
   // Invite Widget Quotes Slider (2-second rotation)
   initInviteQuoteSlider();

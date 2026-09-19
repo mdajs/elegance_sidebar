@@ -1,43 +1,72 @@
 /* ═══════════════════════════════════════════════════════════════════
-   ♛ ELEGANCE CHESS CLUB — DESIGN SYSTEM
-   Palette: Ink Black · Ivory · Muted Gold · Soft Burgundy
-   Typography: Playfair Display (display) + Inter (body)
-═══════════════════════════════════════════════════════════════════ */
+   ♛ ELEGANCE CHESS CLUB — ANIME EMERALD & BLUE FLAME DESIGN SYSTEM
+   Palette: Dark Obsidian Green · Neon Emerald Green · Ethereal Blue Flame
+   Typography: Playfair Display + Inter + Orbitron/JetBrains Mono
+ ═══════════════════════════════════════════════════════════════════ */
 
 /* ── TOKENS ─────────────────────────────────────────────────────── */
 :root {
-  /* Colour palette */
-  --bg:              #0E0F12;
-  --surface:         #15161B;
-  --surface-2:       #1C1E26;
-  --surface-3:       #222430;
+  /* Anime Emerald & Obsidian Palette */
+  --bg:              #030906;
+  --surface:         #07130c;
+  --surface-2:       #0b1d12;
+  --surface-3:       #10281a;
+
+  --neon-green:      #00ff88;
+  --neon-green-dim:  #00b35f;
+  --neon-green-faint: rgba(0, 255, 136, 0.12);
+  --neon-green-glow:  rgba(0, 255, 136, 0.35);
+  --neon-green-line:  rgba(0, 255, 136, 0.45);
+
+  --flame-cyan:      #00ffff;
+  --flame-blue:      #00a2ff;
+  --flame-purple:    #7000ff;
+  --flame-blue-glow: rgba(0, 210, 255, 0.6);
 
   --ivory:           #F5F1E8;
-  --ivory-dim:       #B8B4AA;
-  --ivory-faint:     #6A6760;
+  --ivory-dim:       #A3B8AD;
+  --ivory-faint:     #52695D;
 
-  --gold:            #C9A959;
-  --gold-dim:        #8A7340;
-  --gold-faint:      rgba(201, 169, 89, 0.12);
-  --gold-glow:       rgba(201, 169, 89, 0.18);
-  --gold-line:       rgba(201, 169, 89, 0.28);
+  --gold:            #00ff88; /* Alias gold to glowing emerald */
+  --gold-dim:        #00c86b;
+  --gold-faint:      rgba(0, 255, 136, 0.12);
+  --gold-glow:       rgba(0, 255, 136, 0.25);
+  --gold-line:       rgba(0, 255, 136, 0.38);
 
-  --burgundy:        #5E1B1B;
-  --burgundy-mid:    #8B2929;
-  --burgundy-faint:  rgba(94, 27, 27, 0.25);
+  --burgundy:        #0d2b1f;
+  --burgundy-mid:    #00e676;
+  --burgundy-faint:  rgba(0, 255, 136, 0.2);
 
-  --online:          #7FA650;
-  --online-faint:    rgba(127, 166, 80, 0.18);
+  --online:          #00ff88;
+  --online-faint:    rgba(0, 255, 136, 0.3);
 
   /* Semantic aliases */
   --color-text:      var(--ivory);
   --color-muted:     var(--ivory-dim);
   --color-faint:     var(--ivory-faint);
-  --color-accent:    var(--gold);
-  --color-border:    var(--gold-line);
-  --color-border-sub: rgba(201, 169, 89, 0.10);
+  --color-accent:    var(--neon-green);
+  --color-border:    var(--neon-green-line);
+  --color-border-sub: rgba(0, 255, 136, 0.2);
 
   /* Typography */
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Spacing */
+  --sidebar-px: 24px;
+  --section-py: 20px;
+
+  /* Radii */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  /* Transitions */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 180ms;
+  --t-base: 280ms;
+}ography */
   --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --font-body:    'Inter', system-ui, -apple-system, sans-serif;
 
@@ -313,42 +342,45 @@ body {
 /* ═══════════════════════════════════════════════════════════════════
    ETERNAL TORCH & CLUB EXISTENCE TIMER
 ═══════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════
+   ETERNAL TORCH & CLUB EXISTENCE TIMER (ANIME BLUE FLAME)
+═══════════════════════════════════════════════════════════════════ */
 .torch-widget {
   position: relative;
   z-index: 1;
   margin-top: 18px;
   padding: 16px 14px 14px;
-  background: linear-gradient(135deg, rgba(28, 20, 14, 0.75) 0%, rgba(15, 16, 21, 0.9) 100%);
-  border: 1px solid rgba(201, 169, 89, 0.3);
+  background: linear-gradient(135deg, rgba(7, 19, 12, 0.85) 0%, rgba(3, 9, 6, 0.95) 100%);
+  border: 1px solid var(--neon-green-line);
   border-radius: var(--r-md);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 0 15px rgba(255, 140, 0, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 255, 136, 0.1), 0 0 10px rgba(0, 255, 136, 0.2);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 10px;
   overflow: hidden;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 
-/* Ambient warm torch radial background glow */
+/* Ambient anime blue & emerald flame radial glow */
 .torch-glow-ambient {
   position: absolute;
   top: 42px;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 130, 0, 0.28) 0%, rgba(201, 169, 89, 0.12) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 210, 255, 0.4) 0%, rgba(0, 255, 136, 0.2) 45%, transparent 75%);
   pointer-events: none;
-  animation: torchAmbientPulse 3s ease-in-out infinite alternate;
+  animation: torchAmbientPulse 2.5s ease-in-out infinite alternate;
 }
 
 @keyframes torchAmbientPulse {
-  0%   { opacity: 0.6; transform: translate(-50%, -50%) scale(0.9); }
-  50%  { opacity: 1.0; transform: translate(-50%, -50%) scale(1.15); }
-  100% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.95); }
+  0%   { opacity: 0.6; transform: translate(-50%, -50%) scale(0.85); }
+  50%  { opacity: 1.0; transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 0.75; transform: translate(-50%, -50%) scale(0.95); }
 }
 
 /* Torch Stage (Flame + Sconce) */
@@ -368,15 +400,15 @@ body {
   height: 36px;
   position: relative;
   z-index: 2;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 2px 8px rgba(0, 255, 136, 0.4));
 }
 
 /* Torch Flame Container */
 .torch-flame-container {
   position: absolute;
   bottom: 22px;
-  width: 24px;
-  height: 38px;
+  width: 26px;
+  height: 40px;
   z-index: 3;
   display: flex;
   justify-content: center;
@@ -384,7 +416,7 @@ body {
   pointer-events: none;
 }
 
-/* Multi-layer Flame Elements */
+/* Multi-layer Blue Anime Flame Elements */
 .flame-layer {
   position: absolute;
   bottom: 0;
@@ -394,29 +426,29 @@ body {
 }
 
 .flame-outer {
-  width: 24px;
-  height: 36px;
-  background: radial-gradient(ellipse at bottom, #FF8C00 0%, #FF4500 50%, rgba(200, 0, 0, 0) 100%);
-  opacity: 0.9;
-  box-shadow: 0 0 12px #FF6A00, 0 -4px 14px rgba(255, 69, 0, 0.6);
-  animation: flameFlickerMain 1.4s ease-in-out infinite alternate;
+  width: 26px;
+  height: 38px;
+  background: radial-gradient(ellipse at bottom, #00d2ff 0%, #0066ff 45%, rgba(112, 0, 255, 0) 100%);
+  opacity: 0.95;
+  box-shadow: 0 0 16px #00d2ff, 0 -6px 20px rgba(0, 162, 255, 0.8);
+  animation: flameFlickerMain 1.3s ease-in-out infinite alternate;
 }
 
 .flame-mid {
-  width: 16px;
-  height: 26px;
-  background: radial-gradient(ellipse at bottom, #FFD700 0%, #FFA500 70%, rgba(255, 140, 0, 0) 100%);
-  opacity: 0.95;
-  box-shadow: 0 0 10px #FFD700;
-  animation: flameFlickerSecondary 1.1s ease-in-out infinite alternate;
+  width: 18px;
+  height: 28px;
+  background: radial-gradient(ellipse at bottom, #00ffff 0%, #0099ff 70%, rgba(0, 210, 255, 0) 100%);
+  opacity: 0.98;
+  box-shadow: 0 0 14px #00ffff, 0 0 24px rgba(0, 255, 255, 0.6);
+  animation: flameFlickerSecondary 1.0s ease-in-out infinite alternate;
 }
 
 .flame-core {
-  width: 9px;
-  height: 16px;
-  background: radial-gradient(ellipse at bottom, #FFFFFF 0%, #FFF8DC 60%, rgba(255, 215, 0, 0) 100%);
-  box-shadow: 0 0 8px #FFFFFF;
-  animation: flameFlickerCore 0.8s ease-in-out infinite alternate;
+  width: 10px;
+  height: 18px;
+  background: radial-gradient(ellipse at bottom, #FFFFFF 0%, #e0ffff 60%, rgba(0, 255, 255, 0) 100%);
+  box-shadow: 0 0 10px #FFFFFF, 0 0 16px #00ffff;
+  animation: flameFlickerCore 0.75s ease-in-out infinite alternate;
 }
 
 .flame-spark {
@@ -425,35 +457,35 @@ body {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #FFF;
-  box-shadow: 0 0 6px #FFEAA7;
-  animation: sparkPulse 0.5s ease-in-out infinite alternate;
+  background: #FFFFFF;
+  box-shadow: 0 0 8px #00ffff;
+  animation: sparkPulse 0.4s ease-in-out infinite alternate;
 }
 
-/* Floating Ember Particles */
+/* Floating Blue Ember Particles */
 .torch-particle {
   position: absolute;
-  width: 2.5px;
-  height: 2.5px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background: #FFD700;
-  box-shadow: 0 0 4px #FF8C00;
+  background: #00ffff;
+  box-shadow: 0 0 6px #00d2ff;
   opacity: 0;
   pointer-events: none;
 }
 
 .torch-particle.p1 {
-  left: 3px;
+  left: 2px;
   animation: emberFloat 1.8s ease-out infinite 0.1s;
 }
 
 .torch-particle.p2 {
-  right: 4px;
+  right: 3px;
   animation: emberFloat 2.2s ease-out infinite 0.7s;
 }
 
 .torch-particle.p3 {
-  left: 10px;
+  left: 11px;
   animation: emberFloat 1.5s ease-out infinite 1.2s;
 }
 
@@ -1710,7 +1742,235 @@ body {
   body { padding: 24px 0; }
   .sidebar {
     border-radius: var(--r-lg);
-    border: 1px solid var(--color-border-sub);
+    border: 1px solid var(--neon-green-line);
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.25), 0 0 50px rgba(0, 0, 0, 0.9);
     min-height: unset;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ANIME GAME UI — NAVIGATION TAB BAR
+═══════════════════════════════════════════════════════════════════ */
+.anime-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(4, 12, 8, 0.9);
+  border-bottom: 1px solid var(--neon-green-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.anime-nav-bar::-webkit-scrollbar { display: none; }
+
+.anime-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  background: rgba(10, 25, 17, 0.6);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  color: var(--ivory-dim);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--t-fast) var(--ease);
+}
+
+.anime-nav-item:hover {
+  background: rgba(0, 255, 136, 0.15);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+.anime-nav-item.active {
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.25) 0%, rgba(0, 210, 255, 0.2) 100%);
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.4), inset 0 0 8px rgba(0, 255, 136, 0.2);
+}
+
+.anime-nav-icon {
+  font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EMERALD RADIO — ANIME LO-FI PLAYER WIDGET
+═══════════════════════════════════════════════════════════════════ */
+.radio-widget {
+  background: linear-gradient(135deg, rgba(7, 19, 12, 0.9) 0%, rgba(2, 6, 4, 0.95) 100%);
+  border: 1px solid var(--neon-green-line);
+  border-radius: var(--r-md);
+  padding: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 255, 136, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.radio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.radio-live-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ff0055;
+  background: rgba(255, 0, 85, 0.15);
+  border: 1px solid rgba(255, 0, 85, 0.4);
+  padding: 2px 7px;
+  border-radius: var(--r-xs);
+  animation: liveBadgeGlow 1.5s infinite alternate;
+}
+
+@keyframes liveBadgeGlow {
+  0% { box-shadow: 0 0 4px rgba(255, 0, 85, 0.3); }
+  100% { box-shadow: 0 0 12px rgba(255, 0, 85, 0.8); }
+}
+
+.radio-track-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ivory);
+  letter-spacing: 0.02em;
+}
+
+.radio-artist {
+  font-size: 11px;
+  color: var(--neon-green);
+  margin-top: 1px;
+}
+
+.radio-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+}
+
+.eq-bar {
+  width: 3px;
+  height: 100%;
+  background: var(--neon-green);
+  border-radius: 2px;
+  box-shadow: 0 0 6px var(--neon-green-glow);
+  transform-origin: bottom;
+  animation: eqBounce 1.2s ease-in-out infinite alternate;
+}
+
+.eq-bar:nth-child(1) { animation-delay: 0.1s; height: 40%; }
+.eq-bar:nth-child(2) { animation-delay: 0.3s; height: 85%; }
+.eq-bar:nth-child(3) { animation-delay: 0.2s; height: 60%; }
+.eq-bar:nth-child(4) { animation-delay: 0.5s; height: 95%; }
+.eq-bar:nth-child(5) { animation-delay: 0.4s; height: 50%; }
+
+@keyframes eqBounce {
+  0% { transform: scaleY(0.2); }
+  100% { transform: scaleY(1); }
+}
+
+.radio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.radio-btn {
+  background: rgba(0, 255, 136, 0.12);
+  border: 1px solid var(--neon-green-line);
+  color: var(--neon-green);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all var(--t-fast) var(--ease);
+}
+
+.radio-btn:hover {
+  background: var(--neon-green);
+  color: #030906;
+  box-shadow: 0 0 12px var(--neon-green-glow);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BOTTOM ANIME QUOTE CARD
+═══════════════════════════════════════════════════════════════════ */
+.anime-quote-section {
+  padding: 18px var(--sidebar-px) 24px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 255, 136, 0.05) 100%);
+}
+
+.anime-quote-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(7, 19, 12, 0.95) 0%, rgba(2, 8, 5, 0.98) 100%);
+  border: 1px solid var(--neon-green);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: 0 0 18px rgba(0, 255, 136, 0.25), inset 0 0 15px rgba(0, 255, 136, 0.1);
+  overflow: hidden;
+}
+
+.anime-quote-card::before {
+  content: '“';
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  font-family: var(--font-display);
+  font-size: 70px;
+  line-height: 1;
+  color: rgba(0, 255, 136, 0.12);
+  pointer-events: none;
+}
+
+.quote-flame-icon {
+  display: inline-block;
+  font-size: 14px;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 0 6px #00ffff);
+}
+
+.anime-quote-body {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--ivory);
+  letter-spacing: 0.01em;
+  position: relative;
+  z-index: 1;
+}
+
+.anime-quote-author {
+  display: block;
+  margin-top: 8px;
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--neon-green);
+  text-align: right;
+  position: relative;
+  z-index: 1;
+}
+
