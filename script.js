@@ -455,7 +455,7 @@ async function computeMonthlyData() {
       rating:        winnerProfile.rating,
       format:        winner.format || winnerProfile.format,
       avatar:        winnerProfile.avatar,
-      month:         MONTH_LABEL,
+      month:         WEEK_LABEL,
     };
   }
 
@@ -821,13 +821,13 @@ async function loadPlayerOfMonth() {
   try {
     const { potm } = await getMonthlyData();
     if (!potm) {
-      card.innerHTML = `<div class="empty-state" style="width:100%">No games recorded for ${MONTH_LABEL} yet.</div>`;
+      card.innerHTML = `<div class="empty-state" style="width:100%">No games recorded for ${WEEK_LABEL} yet.</div>`;
       return;
     }
     renderPotmCard(card, potm);
   } catch (e) {
-    console.error('[Elegance] POTM failed:', e);
-    card.innerHTML = `<div class="empty-state" style="width:100%">Player of the Month could not be computed.</div>`;
+    console.error('[Elegance] POTW failed:', e);
+    card.innerHTML = `<div class="empty-state" style="width:100%">Player of the Week could not be computed.</div>`;
   }
 }
 
@@ -866,7 +866,7 @@ function renderPotmCard(card, potm) {
       <div class="potm-elo-gain ${eloClass}">
         <span class="elo-arrow">${eloArrow}</span>
         <span class="elo-value">${eloSign}${eloGain}</span>
-        <span class="elo-label">Elo this month</span>
+        <span class="elo-label">Elo this week</span>
       </div>
       <div class="potm-rating" style="margin-top:4px">${wld}</div>
       <div class="potm-month">${escHtml(potm.month)}</div>

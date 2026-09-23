@@ -8,7 +8,7 @@ Pulls real-time data from Chess.com's public PubAPI — no API key required.
 
 - **Club Header** — live club icon, name, member count, and description
 - **New to the Club** — top 5 recent joiners with avatars, titles & country flags
-- **Player of the Month** — admin-curated or auto-computed from weekly active members
+- **Player of the Week** — auto-computed from weekly active members and Elo gains
 - **This Month's Finest Game** — FEN/PGN board viewer (custom SVG renderer, zero dependencies)
 - **Vote Chess** — live in-progress & registered vote chess matches
 - **Daily Matches** — in-progress / registered / recent finished with W/L/D badges
