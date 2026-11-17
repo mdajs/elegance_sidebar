@@ -38,7 +38,7 @@ const CONFIG = {
   CLUB_ID:            'elegance',
   CLUB_NAME_OVERRIDE: '夢 • <i>Yume</i>',
   API_BASE:           'https://api.chess.com/pub',
-  PROXY_URL:          'https://corsproxy.io/?',
+  PROXY_URL:          'https://api.allorigins.win/raw?url=',
   useProxy:           false,
 
   TTL: {
@@ -643,13 +643,6 @@ function initInviteQuoteSlider() {
 //  SECTION 1 — CLUB HEADER
 // ═══════════════════════════════════════════════════════════════════
 async function loadHeader(bypassCache = false) {
-  const data = await apiFetch(
-    `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}`,
-    'club:profile',
-    CONFIG.TTL.CLUB,
-    bypassCache
-  );
-
   const iconEl     = document.getElementById('club-icon');
   const fallbackEl = document.getElementById('club-icon-fallback');
   const nameEl     = document.getElementById('club-name');
@@ -657,36 +650,53 @@ async function loadHeader(bypassCache = false) {
   const descEl     = document.getElementById('club-desc');
   const linkEl     = document.getElementById('club-link');
 
-  if (data.icon) {
+  if (CONFIG.CLUB_NAME_OVERRIDE) {
+    nameEl.innerHTML = CONFIG.CLUB_NAME_OVERRIDE;
+  }
+
+  let data = null;
+  try {
+    data = await apiFetch(
+      `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}`,
+      'club:profile',
+      CONFIG.TTL.CLUB,
+      bypassCache
+    );
+  } catch (err) {
+    console.warn(`[Elegance] Could not fetch profile for '${CONFIG.CLUB_ID}':`, err.message);
+  }
+
+  if (data && data.icon) {
     iconEl.src    = data.icon;
     iconEl.onload = () => { iconEl.classList.add('loaded'); fallbackEl.classList.add('hidden'); };
   }
 
-  if (CONFIG.CLUB_NAME_OVERRIDE) {
-    nameEl.innerHTML = CONFIG.CLUB_NAME_OVERRIDE;
-  } else {
-    nameEl.textContent = data.name || '夢 • Yume';
+  if (!CONFIG.CLUB_NAME_OVERRIDE) {
+    nameEl.textContent = (data && data.name) || '夢 • Yume';
   }
 
-  const count = data.members_count != null ? Number(data.members_count).toLocaleString() : '–';
-  const year  = data.created ? extractYear(data.created) : '';
+  const count = (data && data.members_count != null) ? Number(data.members_count).toLocaleString() : '–';
+  const year  = (data && data.created) ? extractYear(data.created) : '2024';
   subEl.innerHTML = `
-    <span class="gold">${escHtml(count)}</span>
+    <span class="gold">${escHtml(count !== '–' ? count : 'Club')}</span>
     <span class="sep">·</span>
     Est. ${escHtml(String(year))}
   `;
 
-  if (data.created) {
-    initClubTorchTimer(data.created);
-  }
+  const createdTs = (data && data.created) ? data.created : Math.floor(new Date('2024-01-01').getTime() / 1000);
+  initClubTorchTimer(createdTs);
 
-  if (data.description && data.description.trim()) {
+  if (data && data.description && data.description.trim()) {
     const tmp = document.createElement('div');
     tmp.innerHTML = data.description;
     descEl.textContent = tmp.textContent || tmp.innerText || '';
   }
 
-  if (data.url) linkEl.href = data.url;
+  if (data && data.url) {
+    linkEl.href = data.url;
+  } else {
+    linkEl.href = `https://www.chess.com/club/${CONFIG.CLUB_ID}`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -698,59 +708,63 @@ async function loadJoiners(isAutoRefresh = false, bypassCache = false) {
     list.innerHTML = skeletonMemberList(CONFIG.MAX_JOINERS);
   }
 
-  const membersData = await apiFetch(
-    `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
-    'club:members',
-    CONFIG.TTL.MEMBERS,
-    bypassCache
-  );
+  try {
+    const membersData = await apiFetch(
+      `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
+      'club:members',
+      CONFIG.TTL.MEMBERS,
+      bypassCache
+    );
 
-  const seen = new Set();
-  const combined = [
-    ...(membersData.weekly || []),
-    ...(membersData.monthly || []),
-    ...(membersData.all_time || [])
-  ].filter(({ username }) => {
-    if (!username) return false;
-    const lower = username.toLowerCase();
-    if (seen.has(lower)) return false;
-    seen.add(lower);
-    return true;
-  });
+    const seen = new Set();
+    const combined = [
+      ...(membersData.weekly || []),
+      ...(membersData.monthly || []),
+      ...(membersData.all_time || [])
+    ].filter(({ username }) => {
+      if (!username) return false;
+      const lower = username.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
 
-  const recent = combined
-    .sort((a, b) => (b.joined || 0) - (a.joined || 0))
-    .slice(0, CONFIG.MAX_JOINERS);
+    const recent = combined
+      .sort((a, b) => (b.joined || 0) - (a.joined || 0))
+      .slice(0, CONFIG.MAX_JOINERS);
 
-  if (recent.length === 0) {
-    list.innerHTML = `<li class="empty-state">No recent joiners found.</li>`;
-    return;
-  }
+    if (recent.length === 0) {
+      list.innerHTML = `<li class="empty-state">No recent joiners found.</li>`;
+      return;
+    }
 
-  list.innerHTML = '';
-  recent.forEach((member, i) => {
-    const cleanUser = member.username.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
-    const li = document.createElement('li');
-    li.className = 'member-item';
-    li.style.animationDelay = `${i * 0.08}s`;
-    li.id = `member-row-${cleanUser}`;
-    li.innerHTML = `
-      <div class="member-avatar-placeholder" id="member-ph-${cleanUser}">
-        ${escHtml(member.username.charAt(0).toUpperCase())}
-      </div>
-      <div class="member-info">
-        <div class="member-name" id="member-name-${cleanUser}">${escHtml(member.username)}</div>
-        <div class="member-time">
-          ${member.joined ? relativeTime(member.joined) : 'Recently joined'}
+    list.innerHTML = '';
+    recent.forEach((member, i) => {
+      const cleanUser = member.username.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+      const li = document.createElement('li');
+      li.className = 'member-item';
+      li.style.animationDelay = `${i * 0.08}s`;
+      li.id = `member-row-${cleanUser}`;
+      li.innerHTML = `
+        <div class="member-avatar-placeholder" id="member-ph-${cleanUser}">
+          ${escHtml(member.username.charAt(0).toUpperCase())}
         </div>
-      </div>
-    `;
-    list.appendChild(li);
-  });
+        <div class="member-info">
+          <div class="member-name" id="member-name-${cleanUser}">${escHtml(member.username)}</div>
+          <div class="member-time">
+            ${member.joined ? relativeTime(member.joined) : 'Recently joined'}
+          </div>
+        </div>
+      `;
+      list.appendChild(li);
+    });
 
-  for (let i = 0; i < Math.min(recent.length, CONFIG.MAX_ENRICH); i++) {
-    await sleep(CONFIG.ENRICH_DELAY_MS);
-    await enrichMemberRow(recent[i].username);
+    for (let i = 0; i < Math.min(recent.length, CONFIG.MAX_ENRICH); i++) {
+      await sleep(CONFIG.ENRICH_DELAY_MS);
+      await enrichMemberRow(recent[i].username);
+    }
+  } catch (err) {
+    list.innerHTML = `<li class="empty-state">No recent joiners available.</li>`;
   }
 }
 
@@ -1230,26 +1244,32 @@ function renderChessBoard(fen, pgn, targetId = 'gotm-board') {
 //  SECTIONS 5 + 6 + 7 — MATCHES (Vote + Daily + Upcoming)
 // ═══════════════════════════════════════════════════════════════════
 async function loadMatches(bypassCache = false) {
-  const data = await apiFetch(
-    `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/matches`,
-    'club:matches',
-    CONFIG.TTL.MATCHES,
-    bypassCache
-  );
+  try {
+    const data = await apiFetch(
+      `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/matches`,
+      'club:matches',
+      CONFIG.TTL.MATCHES,
+      bypassCache
+    );
 
-  const inProgress = data.in_progress || [];
-  const registered = data.registered  || [];
-  const finished   = data.finished    || [];
+    const inProgress = data.in_progress || [];
+    const registered = data.registered  || [];
+    const finished   = data.finished    || [];
 
-  const isVote     = (m) => /vote/i.test(m.name || '');
-  const voteActive = [...inProgress.filter(isVote), ...registered.filter(isVote)];
-  const dailyInProg = inProgress.filter((m) => !isVote(m));
-  const dailyReg    = registered.filter((m) => !isVote(m));
-  const dailyFin    = finished.filter((m)   => !isVote(m)).slice(0, CONFIG.MAX_FINISHED);
+    const isVote     = (m) => /vote/i.test(m.name || '');
+    const voteActive = [...inProgress.filter(isVote), ...registered.filter(isVote)];
+    const dailyInProg = inProgress.filter((m) => !isVote(m));
+    const dailyReg    = registered.filter((m) => !isVote(m));
+    const dailyFin    = finished.filter((m)   => !isVote(m)).slice(0, CONFIG.MAX_FINISHED);
 
-  renderVoteChess(voteActive);
-  renderDailyMatches(dailyInProg, dailyReg, dailyFin);
-  await renderUpcomingEvents(registered);
+    renderVoteChess(voteActive);
+    renderDailyMatches(dailyInProg, dailyReg, dailyFin);
+    await renderUpcomingEvents(registered);
+  } catch (err) {
+    renderVoteChess([]);
+    renderDailyMatches([], [], []);
+    await renderUpcomingEvents([]);
+  }
 }
 
 function renderVoteChess(matches) {
