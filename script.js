@@ -527,7 +527,7 @@ async function computeMonthlyData() {
 let _torchTimerInterval = null;
 
 function initClubTorchTimer(createdSec) {
-  if (!createdSec) return;
+  if (!createdSec || !document.getElementById('torch-widget')) return;
 
   const createdMs = createdSec * 1000;
   const createdDate = new Date(createdMs);

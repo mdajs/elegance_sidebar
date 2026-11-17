@@ -37,73 +37,6 @@
         </div>
       </div>
 
-      <!-- ════════════════════════════ ETERNAL TORCH & EXISTENCE TIMER ══ -->
-      <div class="torch-widget" id="torch-widget" aria-label="Club existence eternal flame timer">
-        <div class="torch-glow-ambient" aria-hidden="true"></div>
-        <div class="torch-stage">
-          <div class="torch-flame-container">
-            <div class="torch-particle p1" aria-hidden="true"></div>
-            <div class="torch-particle p2" aria-hidden="true"></div>
-            <div class="torch-particle p3" aria-hidden="true"></div>
-            <div class="flame-layer flame-outer" aria-hidden="true"></div>
-            <div class="flame-layer flame-mid" aria-hidden="true"></div>
-            <div class="flame-layer flame-core" aria-hidden="true"></div>
-            <div class="flame-spark" aria-hidden="true"></div>
-          </div>
-          <!-- SVG Torch Sconce -->
-          <svg class="torch-sconce-svg" viewBox="0 0 60 50" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M18 10 L42 10 L38 24 L22 24 Z" fill="url(#sconceCyan)" stroke="#00ff88" stroke-width="1.2"/>
-            <path d="M22 24 L38 24 L34 38 L26 38 Z" fill="url(#sconceDark)" stroke="#00b35f" stroke-width="1"/>
-            <circle cx="30" cy="17" r="3" fill="#00ffff" opacity="0.9"/>
-            <path d="M26 38 L34 38 L30 48 Z" fill="#00b35f"/>
-            <defs>
-              <linearGradient id="sconceCyan" x1="18" y1="10" x2="42" y2="24" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#00ffff"/>
-                <stop offset="0.5" stop-color="#00ff88"/>
-                <stop offset="1" stop-color="#0066ff"/>
-              </linearGradient>
-              <linearGradient id="sconceDark" x1="22" y1="24" x2="38" y2="38" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#0b1d12"/>
-                <stop offset="1" stop-color="#030906"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        <div class="torch-timer-meta">
-          <div class="torch-timer-heading">
-            <span class="torch-heading-flame" aria-hidden="true">💧</span> ETERNAL BLUE FLAME
-          </div>
-          <div class="torch-timer-grid" id="torch-timer-grid" aria-live="polite">
-            <div class="timer-unit">
-              <span class="timer-val" id="timer-years">–</span>
-              <span class="timer-lbl">YRS</span>
-            </div>
-            <span class="timer-colon">:</span>
-            <div class="timer-unit">
-              <span class="timer-val" id="timer-days">–––</span>
-              <span class="timer-lbl">DAYS</span>
-            </div>
-            <span class="timer-colon">:</span>
-            <div class="timer-unit">
-              <span class="timer-val" id="timer-hours">––</span>
-              <span class="timer-lbl">HRS</span>
-            </div>
-            <span class="timer-colon">:</span>
-            <div class="timer-unit">
-              <span class="timer-val" id="timer-mins">––</span>
-              <span class="timer-lbl">MIN</span>
-            </div>
-            <span class="timer-colon">:</span>
-            <div class="timer-unit">
-              <span class="timer-val" id="timer-secs">––</span>
-              <span class="timer-lbl">SEC</span>
-            </div>
-          </div>
-          <div class="torch-since-tag" id="torch-since-tag">Calculating club longevity…</div>
-        </div>
-      </div>
-
       <p class="club-desc" id="club-desc"></p>
       <a class="club-link" id="club-link" href="https://www.chess.com/club/club-d823d67a" target="_blank" rel="noopener noreferrer">
         View Club on Chess.com <span aria-hidden="true">→</span>
@@ -113,8 +46,10 @@
     <!-- ══════════════════════════════ OUR NEWEST DREAMS ══ -->
     <section class="sidebar-section" id="section-joiners">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
+        <span class="section-kanji">夢</span>
         <h2 class="section-title">Our Newest Dreams</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag">New Joiners</span>
       </div>
       <ul class="member-list" id="joiners-list" aria-label="Recently joined members">
         <!-- skeleton rows injected by JS -->
@@ -124,8 +59,10 @@
     <!-- ══════════════════════════════ PLAYER OF THE WEEK ══ -->
     <section class="sidebar-section" id="section-potm">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
+        <span class="section-kanji">王</span>
         <h2 class="section-title">Player of the Week</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag">Weekly Best</span>
       </div>
       <div class="potm-card" id="potm-card" aria-live="polite">
         <div class="potm-loading">
@@ -141,8 +78,10 @@
     <!-- ════════════════════════════════════ THE ELITE ROSTER ══ -->
     <section class="sidebar-section" id="section-roster">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
+        <span class="section-kanji">頂</span>
         <h2 class="section-title">The Elite Roster</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag">Top Ratings</span>
       </div>
       <ul class="elite-list" id="elite-list" aria-label="Top active players by rating">
         <li class="skeleton-block skeleton" style="height:48px;border-radius:8px;margin-bottom:6px"></li>
@@ -154,8 +93,9 @@
     <!-- ════════════════════════════════════════ HALL OF FAME ══ -->
     <section class="sidebar-section" id="section-hof">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
+        <span class="section-kanji">誉</span>
         <h2 class="section-title">Hall of Fame</h2>
+        <div class="section-divider-line"></div>
         <span class="section-tag">Titled Members</span>
       </div>
       <div class="hof-grid" id="hof-grid" aria-live="polite">
@@ -167,8 +107,10 @@
     <!-- ══════════════════════════════ GAME OF THE WEEK ════ -->
     <section class="sidebar-section" id="section-gotm">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
-        <h2 class="section-title">This Week's Finest Game</h2>
+        <span class="section-kanji">極</span>
+        <h2 class="section-title">Finest Game</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag">Game of Week</span>
       </div>
       <div class="gotm-card" id="gotm-card" aria-live="polite">
         <div class="skeleton-block skeleton" style="height:200px;border-radius:8px"></div>
@@ -178,8 +120,10 @@
     <!-- ════════════════════════════════════════ VOTE CHESS ══ -->
     <section class="sidebar-section" id="section-vote">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
+        <span class="section-kanji">戦</span>
         <h2 class="section-title">Vote Chess</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag">Club Matches</span>
       </div>
       <div id="vote-list" aria-live="polite">
         <div class="skeleton-block skeleton" style="height:56px;border-radius:8px;margin-bottom:8px"></div>
@@ -189,8 +133,10 @@
     <!-- ══════════════════════════════════ DAILY MATCHES ════ -->
     <section class="sidebar-section" id="section-matches">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
+        <span class="section-kanji">闘</span>
         <h2 class="section-title">Daily Matches</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag">Recent Results</span>
       </div>
       <div id="matches-list" aria-live="polite">
         <div class="skeleton-block skeleton" style="height:80px;border-radius:8px"></div>
@@ -200,8 +146,10 @@
     <!-- ══════════════════════════════ UPCOMING EVENTS ══════ -->
     <section class="sidebar-section" id="section-events">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
+        <span class="section-kanji">催</span>
         <h2 class="section-title">Upcoming Events</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag">Schedule</span>
       </div>
       <ul class="events-list" id="events-list" aria-label="Upcoming club events" aria-live="polite">
         <li class="skeleton-block skeleton" style="height:64px;border-radius:8px;list-style:none"></li>
@@ -212,9 +160,10 @@
     <!-- ════════════════════════════════ WEEKLY MASTERCLASS ════ -->
     <section class="sidebar-section sidebar-section--puzzle" id="section-masterclass">
       <div class="section-header">
-        <span class="section-icon" aria-hidden="true">♞</span>
+        <span class="section-kanji">策</span>
         <h2 class="section-title">Weekly Masterclass</h2>
-        <span class="section-tag" id="masterclass-tag">Brilliant Tactics</span>
+        <div class="section-divider-line"></div>
+        <span class="section-tag" id="masterclass-tag">Tactics</span>
       </div>
       <div class="gotm-card" id="masterclass-card" aria-live="polite">
         <div class="gotm-board-wrap">
