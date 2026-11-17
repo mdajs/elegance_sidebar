@@ -35,7 +35,7 @@ const WEEK_LABEL    = `Week of ${WEEK_START.toLocaleDateString('en-US', { month:
 //  CONFIG
 // ═══════════════════════════════════════════════════════════════════
 const CONFIG = {
-  CLUB_ID:            'elegance',
+  CLUB_ID:            'club-d823d67a',
   CLUB_NAME_OVERRIDE: '夢 • <i>Yume</i>',
   API_BASE:           'https://api.chess.com/pub',
   PROXY_URL:          'https://api.allorigins.win/raw?url=',
