@@ -43,6 +43,75 @@
       </a>
     </header>
 
+    <!-- ══════════════════════════════ CLUB MEMBERS COUNTER ══ -->
+    <section class="sidebar-section" id="section-members">
+      <div class="section-header">
+        <span class="section-kanji">衆</span>
+        <h2 class="section-title">Club Members</h2>
+        <div class="section-divider-line"></div>
+        <span class="section-tag" id="member-counter-tag">Community Pulse</span>
+      </div>
+
+      <div class="member-counter-card" id="member-counter-card" aria-live="polite">
+        <!-- Ambient anime glow effects & watermark -->
+        <div class="member-counter-watermark" aria-hidden="true">♛</div>
+        <div class="member-counter-glow" aria-hidden="true"></div>
+
+        <!-- Top row: Primary Hero Stat + Live Status Badge -->
+        <div class="member-hero-row">
+          <div class="member-hero-stat">
+            <div class="member-count-wrapper">
+              <span class="member-count-number" id="member-total-count">--</span>
+              <span class="member-count-plus" aria-hidden="true">+</span>
+            </div>
+            <div class="member-count-label">
+              <span class="member-kanji-sub">夢の仲間</span>
+              <span>Total Dreamers</span>
+            </div>
+          </div>
+
+          <div class="member-status-pill" id="member-status-pill" title="Active club members this week">
+            <span class="pulse-dot"></span>
+            <span class="member-active-val" id="member-active-count">--</span>
+            <span class="member-active-txt">Active</span>
+          </div>
+        </div>
+
+        <!-- Middle row: Milestone Progress Bar -->
+        <div class="member-milestone-wrap">
+          <div class="member-milestone-header">
+            <span class="milestone-label">Next Milestone</span>
+            <span class="milestone-target" id="milestone-target-text">--</span>
+          </div>
+          <div class="member-progress-track">
+            <div class="member-progress-bar" id="member-progress-bar" style="width: 0%"></div>
+          </div>
+          <div class="member-progress-stats">
+            <span id="member-progress-pct">--% Achieved</span>
+            <span id="member-needed-count">-- to next rank</span>
+          </div>
+        </div>
+
+        <!-- Bottom row: Quick Stat Metrics -->
+        <div class="member-stats-grid">
+          <div class="member-stat-box">
+            <span class="stat-box-val" id="member-weekly-count">--</span>
+            <span class="stat-box-lbl">Weekly Active</span>
+          </div>
+          <div class="member-stat-divider" aria-hidden="true"></div>
+          <div class="member-stat-box">
+            <span class="stat-box-val" id="member-activity-rate">--%</span>
+            <span class="stat-box-lbl">Activity Rate</span>
+          </div>
+          <div class="member-stat-divider" aria-hidden="true"></div>
+          <div class="member-stat-box">
+            <span class="stat-box-val" id="member-admins-count">--</span>
+            <span class="stat-box-lbl">Officers</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ══════════════════════════════ OUR NEWEST DREAMS ══ -->
     <section class="sidebar-section" id="section-joiners">
       <div class="section-header">

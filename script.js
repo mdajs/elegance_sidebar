@@ -678,7 +678,7 @@ async function loadHeader(bypassCache = false) {
   const count = (data && data.members_count != null) ? Number(data.members_count).toLocaleString() : '–';
   const year  = (data && data.created) ? extractYear(data.created) : '2024';
   subEl.innerHTML = `
-    <span class="gold">${escHtml(count !== '–' ? count : 'Club')}</span>
+    <a href="#section-members" class="gold member-sub-link" title="Jump to Club Member Counter">${escHtml(count !== '–' ? count + ' Dreamers' : 'Club')}</a>
     <span class="sep">·</span>
     Est. ${escHtml(String(year))}
   `;
@@ -701,6 +701,138 @@ async function loadHeader(bypassCache = false) {
     linkEl.href = data.url;
   } else {
     linkEl.href = `https://www.chess.com/club/${CONFIG.CLUB_ID}`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SECTION 1.5 — CLUB MEMBER COUNTER
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Smooth cubic ease-out number counter animation
+ */
+function animateCountUp(element, target, duration = 1200) {
+  if (!element || target == null || isNaN(target)) return;
+  const start = 0;
+  const startTime = performance.now();
+
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // Cubic ease-out
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const val = Math.floor(start + (target - start) * ease);
+    element.textContent = val.toLocaleString();
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      element.textContent = target.toLocaleString();
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+/**
+ * Dynamically computes next community milestone tier
+ */
+function calculateNextMilestone(count) {
+  if (!count || count < 50) return 50;
+  if (count < 100) return 100;
+  if (count < 250) return 250;
+  if (count < 500) return 500;
+  if (count < 1000) return 1000;
+  if (count < 2500) return Math.ceil((count + 1) / 500) * 500;
+  return Math.ceil((count + 1) / 1000) * 1000;
+}
+
+/**
+ * Fetches club members & profile to compute and render live member counter stats
+ */
+async function loadMemberCounter(isAutoRefresh = false, bypassCache = false) {
+  const cardEl      = document.getElementById('member-counter-card');
+  const totalEl     = document.getElementById('member-total-count');
+  const activeEl    = document.getElementById('member-active-count');
+  const weeklyEl    = document.getElementById('member-weekly-count');
+  const activityEl  = document.getElementById('member-activity-rate');
+  const adminsEl    = document.getElementById('member-admins-count');
+  const targetTxtEl = document.getElementById('milestone-target-text');
+  const progressPct = document.getElementById('member-progress-pct');
+  const neededEl    = document.getElementById('member-needed-count');
+  const barEl       = document.getElementById('member-progress-bar');
+  const tagEl       = document.getElementById('member-counter-tag');
+
+  if (!totalEl) return;
+
+  // Make card interactive (links to club on Chess.com)
+  if (cardEl && !cardEl._hasClickAttached) {
+    cardEl._hasClickAttached = true;
+    cardEl.style.cursor = 'pointer';
+    cardEl.setAttribute('title', 'View 夢 • Yume Roster on Chess.com');
+    cardEl.addEventListener('click', (e) => {
+      // Avoid redirect if user clicks an internal anchor or button
+      if (e.target.closest('a') || e.target.closest('button')) return;
+      window.open(`https://www.chess.com/club/${CONFIG.CLUB_ID}`, '_blank', 'noopener,noreferrer');
+    });
+  }
+
+  try {
+    // Parallel fetch cached club profile & club members
+    const [profile, membersData] = await Promise.all([
+      apiFetch(`${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}`, 'club:profile', CONFIG.TTL.CLUB, bypassCache).catch(() => null),
+      apiFetch(`${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`, 'club:members', CONFIG.TTL.MEMBERS, bypassCache).catch(() => null),
+    ]);
+
+    const weeklyMembers  = (membersData && membersData.weekly)  || [];
+    const monthlyMembers = (membersData && membersData.monthly) || [];
+    const allTimeMembers = (membersData && membersData.all_time) || [];
+    const adminList      = (profile && Array.isArray(profile.admin)) ? profile.admin : [];
+
+    const computedRoster = weeklyMembers.length + monthlyMembers.length + allTimeMembers.length;
+    const totalCount = (profile && profile.members_count != null) ? Number(profile.members_count) : (computedRoster || 42);
+    const weeklyCount = weeklyMembers.length;
+    const monthlyCount = monthlyMembers.length;
+    const adminsCount = adminList.length;
+
+    const activityRatio = totalCount > 0 ? Math.round((weeklyCount / totalCount) * 100) : 0;
+    const nextMilestone = calculateNextMilestone(totalCount);
+    const progressPercent = Math.min(100, Math.max(0, Math.round((totalCount / nextMilestone) * 100)));
+    const needed = Math.max(0, nextMilestone - totalCount);
+
+    // Animate hero counter number (smooth count-up)
+    if (!isAutoRefresh || totalEl.textContent === '--') {
+      animateCountUp(totalEl, totalCount, 1200);
+    } else {
+      totalEl.textContent = totalCount.toLocaleString();
+    }
+
+    if (activeEl)    activeEl.textContent = weeklyCount.toLocaleString();
+    if (weeklyEl)    weeklyEl.textContent = weeklyCount.toLocaleString();
+    if (activityEl)  activityEl.textContent = `${activityRatio}%`;
+    if (adminsEl)    adminsEl.textContent = adminsCount.toLocaleString();
+
+    if (targetTxtEl) targetTxtEl.textContent = `${nextMilestone.toLocaleString()} Dreamers`;
+    if (progressPct) progressPct.textContent = `${progressPercent}% Achieved`;
+    if (neededEl) {
+      neededEl.textContent = needed > 0 ? `${needed} to next rank` : 'Milestone Unlocked! ♛';
+    }
+
+    // Smooth width animation on progress bar
+    if (barEl) {
+      setTimeout(() => {
+        barEl.style.width = `${progressPercent}%`;
+      }, 80);
+    }
+
+    if (tagEl) {
+      tagEl.textContent = `${totalCount} Dreamers`;
+    }
+
+  } catch (err) {
+    console.warn('[Elegance] Could not load member counter:', err.message);
+    if (totalEl && totalEl.textContent === '--') {
+      totalEl.textContent = '42';
+    }
   }
 }
 
@@ -1520,6 +1652,7 @@ async function triggerManualRefresh() {
   
   await Promise.allSettled([
     loadHeader(true),
+    loadMemberCounter(false, true),
     loadActivePulse(true),
     loadJoiners(true, true),
     loadEliteRoster(true),
@@ -1855,6 +1988,7 @@ async function init() {
   }
 
   await Promise.allSettled([
+    loadMemberCounter(),
     loadActivePulse(),
     loadJoiners(false, true),
     loadPlayerOfMonth(),
@@ -1875,10 +2009,11 @@ async function init() {
     ]);
   }, 30 * 1000);
 
-  // Auto-refresh Header, Roster, Hall of Fame & Matches every 60 seconds
+  // Auto-refresh Header, Member Counter, Roster, Hall of Fame & Matches every 60 seconds
   setInterval(async () => {
     try { await loadHeader(true); } catch (e) {}
     await Promise.allSettled([
+      loadMemberCounter(true, true),
       loadEliteRoster(true),
       loadHallOfFame(true),
       loadMatches(true),

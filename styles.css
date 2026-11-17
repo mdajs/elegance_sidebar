@@ -89,6 +89,7 @@
 /* ── ROOT / BODY ────────────────────────────────────────────────── */
 html {
   font-size: 14px;
+  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -121,6 +122,7 @@ body {
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -293,6 +295,16 @@ body {
 
 .club-sub .gold { color: var(--gold); font-weight: 500; }
 .club-sub .sep  { color: var(--ivory-faint); }
+.member-sub-link {
+  color: var(--gold);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all var(--t-fast);
+}
+.member-sub-link:hover {
+  color: #FFFFFF;
+  text-shadow: 0 0 10px var(--crimson-glow);
+}
 
 /* Description */
 .club-desc {
@@ -408,6 +420,293 @@ body {
   text-transform: none;
   font-weight: 400;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CLUB MEMBER COUNTER WIDGET
+═══════════════════════════════════════════════════════════════════ */
+.member-counter-card {
+  position: relative;
+  background: linear-gradient(145deg, rgba(42, 36, 58, 0.95) 0%, rgba(27, 22, 38, 0.98) 100%);
+  border: 1px solid rgba(230, 57, 70, 0.32);
+  border-radius: var(--r-lg);
+  padding: 18px 18px 15px;
+  overflow: hidden;
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.45), inset 0 0 15px rgba(230, 57, 70, 0.05);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.member-counter-card:hover {
+  border-color: rgba(230, 57, 70, 0.65);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 22px rgba(230, 57, 70, 0.25), inset 0 0 20px rgba(230, 57, 70, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Watermark crown / chess queen in the background */
+.member-counter-watermark {
+  position: absolute;
+  right: 10px;
+  bottom: -12px;
+  font-family: var(--font-display);
+  font-size: 92px;
+  line-height: 1;
+  color: rgba(230, 57, 70, 0.055);
+  pointer-events: none;
+  user-select: none;
+  transition: transform var(--t-base) var(--ease), color var(--t-base) var(--ease);
+}
+
+.member-counter-card:hover .member-counter-watermark {
+  transform: scale(1.08) rotate(-4deg);
+  color: rgba(230, 57, 70, 0.09);
+}
+
+/* Subtle ambient corner glow */
+.member-counter-glow {
+  position: absolute;
+  top: -45px;
+  left: -45px;
+  width: 130px;
+  height: 130px;
+  background: radial-gradient(circle, rgba(230, 57, 70, 0.22) 0%, transparent 70%);
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+/* Hero Row */
+.member-hero-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.member-hero-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-count-wrapper {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.member-count-number {
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 20px rgba(255, 51, 85, 0.45);
+}
+
+.member-count-plus {
+  font-family: var(--font-body);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--crimson-bright);
+  text-shadow: 0 0 10px var(--crimson-glow);
+  transform: translateY(-8px);
+}
+
+.member-count-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ivory-dim);
+}
+
+.member-kanji-sub {
+  font-family: 'Yu Gothic', 'Hiragino Sans', 'Meiryo', system-ui, sans-serif;
+  color: var(--kanji-color);
+  font-weight: 700;
+  font-size: 11px;
+  text-shadow: 0 0 8px var(--kanji-glow);
+  letter-spacing: 0.05em;
+}
+
+/* Live Status Badge */
+.member-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(230, 57, 70, 0.12);
+  border: 1px solid rgba(230, 57, 70, 0.35);
+  font-size: 11px;
+  font-weight: 600;
+  color: #FFFFFF;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: all var(--t-fast) var(--ease);
+  cursor: default;
+}
+
+.member-counter-card:hover .member-status-pill {
+  background: rgba(230, 57, 70, 0.22);
+  border-color: rgba(230, 57, 70, 0.55);
+  box-shadow: 0 0 12px rgba(230, 57, 70, 0.35);
+}
+
+.member-status-pill .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FF3355;
+  box-shadow: 0 0 0 2px rgba(255, 51, 85, 0.35);
+  animation: pulse-glow 2s infinite;
+}
+
+.member-active-val {
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.member-active-txt {
+  color: var(--ivory-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Milestone Progress Area */
+.member-milestone-wrap {
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.member-milestone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.milestone-label {
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ivory-dim);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.milestone-label::before {
+  content: '✦';
+  font-size: 9px;
+  color: var(--kanji-color);
+  text-shadow: 0 0 6px var(--kanji-glow);
+}
+
+.milestone-target {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--kanji-color);
+  text-shadow: 0 0 8px var(--kanji-glow);
+  letter-spacing: 0.02em;
+}
+
+.member-progress-track {
+  height: 6px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.member-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #E63946 0%, #FF3355 50%, #00E5FF 100%);
+  box-shadow: 0 0 12px rgba(255, 51, 85, 0.75);
+  transition: width 1.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.member-progress-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 9.5px;
+  color: var(--ivory-faint);
+  letter-spacing: 0.03em;
+}
+
+.member-progress-stats span:first-child {
+  color: var(--ivory-dim);
+  font-weight: 500;
+}
+
+/* Bottom Stats Grid */
+.member-stats-grid {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid rgba(230, 57, 70, 0.16);
+}
+
+.member-stat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  text-align: center;
+}
+
+.stat-box-val {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  font-style: italic;
+  color: #FFFFFF;
+  line-height: 1.1;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+}
+
+.stat-box-lbl {
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--ivory-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 3px;
+}
+
+.member-stat-divider {
+  width: 1px;
+  height: 24px;
+  background: linear-gradient(180deg, transparent, rgba(230, 57, 70, 0.3), transparent);
   flex-shrink: 0;
 }
 
