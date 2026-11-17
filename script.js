@@ -1128,31 +1128,56 @@ async function getActiveProfiles(bypassCache = false) {
     }
   }
   
-  const candidates = unique.slice(0, CONFIG.MAX_CANDIDATES);
+  // Scan all unique club members (up to 100) across all activity lists
+  const candidates = unique.slice(0, 100);
   const profiles = [];
-  
-  for (const username of candidates) {
-    await sleep(CONFIG.ENRICH_DELAY_MS);
-    try {
-      const player = await apiFetch(`${CONFIG.API_BASE}/player/${username}`, `player:${username}`, CONFIG.TTL.PLAYER);
-      const stats = await apiFetch(`${CONFIG.API_BASE}/player/${username}/stats`, `stats:${username}`, CONFIG.TTL.STATS);
-      
-      let rating = 0;
-      if (stats) {
-        const rapid  = stats.chess_rapid?.last?.rating  || 0;
-        const blitz  = stats.chess_blitz?.last?.rating  || 0;
-        const bullet = stats.chess_bullet?.last?.rating || 0;
-        rating = Math.max(rapid, blitz, bullet);
+  const BATCH_SIZE = 4;
+
+  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+    const batch = candidates.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(batch.map(async (username) => {
+      try {
+        const [player, stats] = await Promise.all([
+          apiFetch(`${CONFIG.API_BASE}/player/${username}`, `player:${username}`, CONFIG.TTL.PLAYER, bypassCache).catch(() => null),
+          apiFetch(`${CONFIG.API_BASE}/player/${username}/stats`, `stats:${username}`, CONFIG.TTL.STATS, bypassCache).catch(() => null),
+        ]);
+
+        if (!player && !stats) return null;
+
+        let rating = 0;
+        let bestFormat = 'Rapid';
+        if (stats) {
+          const formats = [
+            { name: 'Rapid',  val: stats.chess_rapid?.last?.rating  || 0 },
+            { name: 'Blitz',  val: stats.chess_blitz?.last?.rating  || 0 },
+            { name: 'Bullet', val: stats.chess_bullet?.last?.rating || 0 },
+            { name: 'Daily',  val: stats.chess_daily?.last?.rating  || 0 },
+          ];
+          formats.sort((a, b) => b.val - a.val);
+          rating = formats[0].val;
+          bestFormat = formats[0].name;
+        }
+
+        return {
+          username: (player && player.username) || username,
+          avatar: (player && player.avatar) || null,
+          title: (player && player.title) || null,
+          url: (player && player.url) || `https://www.chess.com/member/${username}`,
+          rating,
+          format: bestFormat
+        };
+      } catch {
+        return null;
       }
-      
-      profiles.push({
-        username: player.username || username,
-        avatar: player.avatar || null,
-        title: player.title || null,
-        url: player.url,
-        rating
-      });
-    } catch { /* silent */ }
+    }));
+
+    for (const p of batchResults) {
+      if (p) profiles.push(p);
+    }
+
+    if (i + BATCH_SIZE < candidates.length) {
+      await sleep(60);
+    }
   }
   
   _activeProfilesCache = profiles;
@@ -1195,6 +1220,7 @@ async function loadEliteRoster(bypassCache = false) {
         ${avatarHtml}
         <div class="elite-info">
           <div class="elite-name">${titleStr}${escHtml(p.username)}</div>
+          <div class="elite-format">${escHtml(p.format || 'Best')}</div>
         </div>
         <div class="elite-rating">${Number(p.rating).toLocaleString()}</div>
       `;
@@ -1644,6 +1670,8 @@ async function triggerManualRefresh() {
   if (el) el.innerHTML = `↻ Syncing live data…`;
   
   // Clear local cache keys to force fresh API payload
+  _activeProfilesCache = null;
+  _activeProfilesTime = 0;
   try { 
     localStorage.removeItem('elegance:club:members'); 
     localStorage.removeItem('elegance:club:profile');

@@ -874,6 +874,16 @@ body {
   white-space: nowrap;
 }
 
+.elite-format {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--ivory-dim);
+  font-weight: 500;
+  margin-top: 1px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .elite-rating {
   font-family: var(--font-display);
   font-size: 14px;
