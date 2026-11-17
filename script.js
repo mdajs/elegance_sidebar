@@ -35,10 +35,11 @@ const WEEK_LABEL    = `Week of ${WEEK_START.toLocaleDateString('en-US', { month:
 //  CONFIG
 // ═══════════════════════════════════════════════════════════════════
 const CONFIG = {
-  CLUB_ID:   'elegance',
-  API_BASE:  'https://api.chess.com/pub',
-  PROXY_URL: 'https://corsproxy.io/?',
-  useProxy:  false,
+  CLUB_ID:            'elegance',
+  CLUB_NAME_OVERRIDE: '夢 • <i>Yume</i>',
+  API_BASE:           'https://api.chess.com/pub',
+  PROXY_URL:          'https://corsproxy.io/?',
+  useProxy:           false,
 
   TTL: {
     CLUB:      60 * 1000,          //  1 min
@@ -661,7 +662,11 @@ async function loadHeader(bypassCache = false) {
     iconEl.onload = () => { iconEl.classList.add('loaded'); fallbackEl.classList.add('hidden'); };
   }
 
-  nameEl.textContent = data.name || 'Elegance';
+  if (CONFIG.CLUB_NAME_OVERRIDE) {
+    nameEl.innerHTML = CONFIG.CLUB_NAME_OVERRIDE;
+  } else {
+    nameEl.textContent = data.name || '夢 • Yume';
+  }
 
   const count = data.members_count != null ? Number(data.members_count).toLocaleString() : '–';
   const year  = data.created ? extractYear(data.created) : '';
@@ -1663,6 +1668,9 @@ class LofiSynthEngine {
 const lofiEngine = new LofiSynthEngine();
 
 function initEmeraldRadio() {
+  const widget = document.getElementById('radio-widget');
+  if (!widget) return;
+
   let isPlaying = false;
   let currentIdx = 0;
   const audio = new Audio();

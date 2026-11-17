@@ -6,11 +6,11 @@
 
 /* ── TOKENS ─────────────────────────────────────────────────────── */
 :root {
-  /* Anime Emerald & Obsidian Palette */
-  --bg:              #030906;
-  --surface:         #07130c;
-  --surface-2:       #0b1d12;
-  --surface-3:       #10281a;
+  /* Obsidian & Deep Midnight Purple Palette */
+  --bg:              #231E32;
+  --surface:         #2B253D;
+  --surface-2:       #352E4B;
+  --surface-3:       #403759;
 
   --neon-green:      #00ff88;
   --neon-green-dim:  #00b35f;
@@ -49,7 +49,7 @@
   --color-border-sub: rgba(0, 255, 136, 0.2);
 
   /* Typography */
-  --font-display: 'Playfair Display', Georgia, serif;
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --font-body:    'Inter', system-ui, -apple-system, sans-serif;
 
   /* Spacing */
@@ -61,24 +61,6 @@
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 16px;
-
-  /* Transitions */
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --t-fast: 180ms;
-  --t-base: 280ms;
-}ography */
-  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
-
-  /* Spacing */
-  --sidebar-px: 24px;
-  --section-py: 20px;
-
-  /* Radii */
-  --r-xs: 3px;
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
 
   /* Transitions */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -102,7 +84,7 @@ html {
 
 body {
   font-family: var(--font-body);
-  background: #08080B;
+  background: #171322;
   color: var(--color-text);
   min-height: 100vh;
   display: flex;
@@ -117,7 +99,7 @@ body {
 .sidebar {
   width: 360px;
   min-height: 100vh;
-  background-color: var(--bg);
+  background-color: #231E32;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
   color: var(--color-text);
   font-family: var(--font-body);
@@ -147,8 +129,8 @@ body {
   inset: 0;
   background:
     radial-gradient(ellipse 80% 60% at 20% -10%, rgba(201, 169, 89, 0.10) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 80% at 80% 110%, rgba(94, 27, 27, 0.08) 0%, transparent 70%),
-    linear-gradient(180deg, #191510 0%, var(--bg) 100%);
+    radial-gradient(ellipse 60% 80% at 80% 110%, rgba(112, 0, 255, 0.12) 0%, transparent 70%),
+    linear-gradient(180deg, #2e2842 0%, var(--bg) 100%);
   pointer-events: none;
   z-index: 0;
 }

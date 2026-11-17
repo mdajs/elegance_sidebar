@@ -3,36 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>♛ Elegance Chess Club</title>
-  <meta name="description" content="Live sidebar for the Elegance Chess Club on Chess.com — new joiners, player of the month, game of the week, daily matches &amp; more.">
+  <title>♛ 夢 • Yume</title>
+  <meta name="description" content="Live sidebar for 夢 • Yume on Chess.com — new joiners, player of the month, game of the week, daily matches &amp; more.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♛</text></svg>">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <aside class="sidebar" id="elegance-sidebar" role="complementary" aria-label="Elegance Chess Club sidebar">
+  <aside class="sidebar" id="elegance-sidebar" role="complementary" aria-label="夢 • Yume sidebar">
 
     <!-- ═══════════════════════════════════════════ HEADER ══ -->
     <header class="sidebar-header" id="section-header">
       <div class="header-bg-motif" aria-hidden="true"></div>
       <div class="header-inner">
         <div class="club-icon-wrap">
-          <img class="club-icon" id="club-icon" src="" alt="Elegance Chess Club icon">
+          <img class="club-icon" id="club-icon" src="" alt="夢 • Yume icon">
           <div class="club-icon-fallback" id="club-icon-fallback" aria-hidden="true">♛</div>
         </div>
         <div class="club-meta">
           <div class="club-crown-row">
-            <div class="club-crown" aria-hidden="true">♛ &nbsp;ELEGANCE</div>
+            <div class="club-crown" aria-hidden="true">♛ &nbsp;夢 • YUME</div>
             <div class="club-pulse" id="club-pulse">
               <span class="pulse-dot"></span><span class="pulse-text" id="pulse-text">Active Today</span>
             </div>
           </div>
-          <h1 class="club-name" id="club-name">
-            <span class="skeleton-inline skeleton">Loading…</span>
-          </h1>
+          <h1 class="club-name" id="club-name">夢 • <i>Yume</i></h1>
           <p class="club-sub" id="club-sub">
             <span class="skeleton-inline skeleton" style="width:140px;height:11px"></span>
           </p>
@@ -112,11 +110,11 @@
       </a>
     </header>
 
-    <!-- ══════════════════════════════════ NEW TO THE CLUB ══ -->
+    <!-- ══════════════════════════════ OUR NEWEST DREAMS ══ -->
     <section class="sidebar-section" id="section-joiners">
       <div class="section-header">
         <span class="section-icon" aria-hidden="true">✦</span>
-        <h2 class="section-title">New to the Club</h2>
+        <h2 class="section-title">Our Newest Dreams</h2>
       </div>
       <ul class="member-list" id="joiners-list" aria-label="Recently joined members">
         <!-- skeleton rows injected by JS -->
@@ -228,87 +226,6 @@
         <a class="gotm-replay-btn" id="masterclass-link" href="#" target="_blank" rel="noopener noreferrer" style="display:none">
           ▶ &nbsp;View the Solution
         </a>
-      </div>
-    </section>
-
-    <!-- ════════════════════════════════════════ GROW THE CLUB ══ -->
-    <section class="sidebar-section" id="section-invite">
-      <div class="section-header">
-        <span class="section-icon" aria-hidden="true">✦</span>
-        <h2 class="section-title">Grow the Club</h2>
-      </div>
-      <div class="invite-widget">
-        <!-- Quotes Carousel Slider (2s rotation) -->
-        <div class="invite-slider-container" id="invite-slider-container">
-          <div class="invite-slides-track" id="invite-slides-track">
-            <div class="invite-slide active">
-              <span class="invite-quote-mark" aria-hidden="true">“</span>
-              <p class="invite-quote-text">Invite your friends & help grow this club</p>
-            </div>
-            <div class="invite-slide">
-              <span class="invite-quote-mark" aria-hidden="true">“</span>
-              <p class="invite-quote-text">Feel the elegance in every move</p>
-            </div>
-            <div class="invite-slide">
-              <span class="invite-quote-mark" aria-hidden="true">“</span>
-              <p class="invite-quote-text">Master the board with elite players</p>
-            </div>
-            <div class="invite-slide">
-              <span class="invite-quote-mark" aria-hidden="true">“</span>
-              <p class="invite-quote-text">Join the legend & ignite the flame</p>
-            </div>
-          </div>
-          <div class="invite-slider-dots" id="invite-slider-dots">
-            <span class="slider-dot active" data-index="0"></span>
-            <span class="slider-dot" data-index="1"></span>
-            <span class="slider-dot" data-index="2"></span>
-            <span class="slider-dot" data-index="3"></span>
-          </div>
-        </div>
-
-        <div class="invite-input-group">
-          <input type="text" id="invite-link" class="invite-link-input" value="https://www.chess.com/club/elegance/join?utm_campaign=club_invite_link&utm_source=chesscom&utm_medium=copy" readonly aria-label="Club invite link">
-          <button class="invite-copy-btn" id="invite-copy-btn" title="Copy link to clipboard">
-            <span class="copy-icon" aria-hidden="true">⎘</span> <span id="copy-btn-text">Copy</span>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ════════════════════════════════════ EMERALD RADIO ══ -->
-    <section class="sidebar-section" id="section-radio">
-      <div class="section-header">
-        <span class="section-icon" aria-hidden="true">🎧</span>
-        <h2 class="section-title">Emerald Radio</h2>
-      </div>
-      <div class="radio-widget" id="radio-widget">
-        <div class="radio-header">
-          <div>
-            <div class="radio-track-title" id="radio-track-title">Midnight Chess Lofi Vol. 1</div>
-            <div class="radio-artist" id="radio-artist">Elegance Chill Beats</div>
-          </div>
-          <div class="radio-equalizer">
-            <div class="eq-bar"></div>
-            <div class="eq-bar"></div>
-            <div class="eq-bar"></div>
-            <div class="eq-bar"></div>
-            <div class="eq-bar"></div>
-          </div>
-        </div>
-        <div class="radio-controls">
-          <button class="radio-btn" id="radio-prev-btn" title="Previous Track">⏮</button>
-          <button class="radio-btn" id="radio-play-btn" title="Play / Pause">▶</button>
-          <button class="radio-btn" id="radio-next-btn" title="Next Track">⏭</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ════════════════════════════════ ANIME QUOTE BANNER ══ -->
-    <section class="anime-quote-section" id="section-quote">
-      <div class="anime-quote-card">
-        <span class="quote-flame-icon">⚡</span>
-        <p class="anime-quote-body">“In silence, the king moves. In wisdom, victory is forged.”</p>
-        <span class="anime-quote-author">— ELEGANCE COUNCIL</span>
       </div>
     </section>
 
