@@ -19,6 +19,10 @@
   --crimson-glow:    rgba(230, 57, 70, 0.45);
   --crimson-line:    rgba(230, 57, 70, 0.35);
 
+  /* Japanese Kanji text aesthetic - Electric Neon Ice Cyan (distinct from red reference) */
+  --kanji-color:     #00E5FF;
+  --kanji-glow:      rgba(0, 229, 255, 0.55);
+
   --neon-green:      var(--crimson);
   --neon-green-dim:  var(--crimson-dim);
   --neon-green-faint: var(--crimson-faint);
@@ -231,7 +235,8 @@ body {
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--kanji-color);
+  text-shadow: 0 0 10px var(--kanji-glow);
 }
 
 .club-pulse {
@@ -363,9 +368,9 @@ body {
   font-family: 'Yu Gothic', 'Hiragino Sans', 'Meiryo', 'PingFang SC', system-ui, sans-serif;
   font-size: 20px;
   font-weight: 700;
-  color: var(--crimson);
+  color: var(--kanji-color);
   line-height: 1;
-  text-shadow: 0 0 12px var(--crimson-glow);
+  text-shadow: 0 0 14px var(--kanji-glow);
   flex-shrink: 0;
   display: inline-block;
   transition: transform var(--t-fast);
@@ -390,7 +395,7 @@ body {
 .section-divider-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, rgba(230, 57, 70, 0.55) 0%, rgba(230, 57, 70, 0.12) 75%, transparent 100%);
+  background: linear-gradient(90deg, rgba(0, 229, 255, 0.55) 0%, rgba(230, 57, 70, 0.2) 65%, transparent 100%);
   min-width: 15px;
 }
 

@@ -689,7 +689,12 @@ async function loadHeader(bypassCache = false) {
   if (data && data.description && data.description.trim()) {
     const tmp = document.createElement('div');
     tmp.innerHTML = data.description;
-    descEl.textContent = tmp.textContent || tmp.innerText || '';
+    let descText = tmp.textContent || tmp.innerText || '';
+    // Replace 'Elegance' with actual club name '夢 • Yume'
+    descText = descText.replace(/\bElegance\b/gi, '夢 • Yume');
+    descEl.textContent = descText;
+  } else if (!descEl.textContent.trim()) {
+    descEl.textContent = '夢 • Yume is a chess community built for players who value precision, improvement, and the beauty of the game.';
   }
 
   if (data && data.url) {
