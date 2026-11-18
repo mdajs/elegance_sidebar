@@ -615,57 +615,38 @@ function initClubTorchTimer(createdSec) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  GROW THE CLUB — QUOTE SLIDER (2-second rotation)
+//  DISCORD SANCTUARY WIDGET
 // ═══════════════════════════════════════════════════════════════════
-let _quoteSliderInterval = null;
+function initDiscordWidget() {
+  const copyBtn  = document.getElementById('discord-copy-btn');
+  const copyText = document.getElementById('discord-copy-text');
+  const inviteUrl = 'https://discord.gg/Kp3zM3pUBa';
 
-function initInviteQuoteSlider() {
-  const container = document.getElementById('invite-slider-container');
-  if (!container) return;
+  if (!copyBtn) return;
 
-  const slides = container.querySelectorAll('.invite-slide');
-  const dots   = container.querySelectorAll('.slider-dot');
-  if (!slides.length) return;
-
-  let currentIndex = 0;
-
-  const goToSlide = (newIndex) => {
-    if (newIndex === currentIndex) return;
-
-    slides.forEach((s) => s.classList.remove('exit-left'));
-
-    const currentSlide = slides[currentIndex];
-    const nextSlide    = slides[newIndex];
-
-    currentSlide.classList.remove('active');
-    currentSlide.classList.add('exit-left');
-
-    nextSlide.classList.add('active');
-
-    dots.forEach((dot, idx) => {
-      dot.classList.toggle('active', idx === newIndex);
-    });
-
-    currentIndex = newIndex;
-  };
-
-  const advanceSlide = () => {
-    const nextIndex = (currentIndex + 1) % slides.length;
-    goToSlide(nextIndex);
-  };
-
-  if (_quoteSliderInterval) clearInterval(_quoteSliderInterval);
-  _quoteSliderInterval = setInterval(advanceSlide, 2000);
-
-  dots.forEach((dot) => {
-    dot.addEventListener('click', () => {
-      const index = parseInt(dot.getAttribute('data-index'), 10);
-      if (!isNaN(index)) {
-        goToSlide(index);
-        if (_quoteSliderInterval) clearInterval(_quoteSliderInterval);
-        _quoteSliderInterval = setInterval(advanceSlide, 2000);
+  copyBtn.addEventListener('click', async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(inviteUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = inviteUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
       }
-    });
+
+      copyBtn.classList.add('copied');
+      if (copyText) copyText.textContent = 'Copied!';
+
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        if (copyText) copyText.textContent = 'Copy Link';
+      }, 2000);
+    } catch (err) {
+      console.warn('[Elegance] Could not copy Discord invite link:', err);
+    }
   });
 }
 
@@ -2059,35 +2040,8 @@ async function init() {
   // Emerald Radio Widget
   initEmeraldRadio();
 
-  // Invite Widget Quotes Slider (2-second rotation)
-  initInviteQuoteSlider();
-
-  // Invite Widget Copy Logic
-  const inviteCopyBtn = document.getElementById('invite-copy-btn');
-  const inviteLink = document.getElementById('invite-link');
-  if (inviteCopyBtn && inviteLink) {
-    inviteCopyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(inviteLink.value);
-        const textSpan = document.getElementById('copy-btn-text');
-        const iconSpan = inviteCopyBtn.querySelector('.copy-icon');
-        const originalText = textSpan.textContent;
-        const originalIcon = iconSpan.textContent;
-
-        inviteCopyBtn.classList.add('success');
-        textSpan.textContent = 'Copied!';
-        iconSpan.textContent = '✓';
-
-        setTimeout(() => {
-          inviteCopyBtn.classList.remove('success');
-          textSpan.textContent = originalText;
-          iconSpan.textContent = originalIcon;
-        }, 2000);
-      } catch (err) {
-        console.error('[Elegance] Failed to copy link: ', err);
-      }
-    });
-  }
+  // Discord Sanctuary Widget
+  initDiscordWidget();
 
   try {
     await loadHeader(true);
