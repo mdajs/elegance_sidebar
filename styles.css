@@ -505,6 +505,18 @@ body {
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 20px rgba(255, 51, 85, 0.45);
+  transition: color var(--t-fast) var(--ease), text-shadow var(--t-fast) var(--ease);
+}
+
+@keyframes memberCountPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  35% { transform: scale(1.1); filter: brightness(1.3); color: #FFD700; text-shadow: 0 0 25px rgba(255, 215, 0, 0.8), 0 0 12px rgba(230, 57, 70, 0.9); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.count-updated-pulse {
+  display: inline-block;
+  animation: memberCountPulse 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .member-count-plus {

@@ -43,7 +43,7 @@ const CONFIG = {
 
   TTL: {
     CLUB:      60 * 1000,          //  1 min
-    MEMBERS:   30 * 1000,          // 30 sec (fast refresh for new joiners!)
+    MEMBERS:   20 * 1000,          // 20 sec (real-time fast refresh for members & joiners)
     MATCHES:   60 * 1000,          //  1 min
     PLAYER:    6 * 60 * 60 * 1000, //  6 h
     STATS:     6 * 60 * 60 * 1000, //  6 h
@@ -96,7 +96,7 @@ const cache = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-//  FETCH HELPER  (CORS-proxy auto-fallback)
+//  FETCH HELPER  (CORS-proxy auto-fallback + true cache-busting)
 // ═══════════════════════════════════════════════════════════════════
 async function apiFetch(url, cacheKey = null, ttl = 0, bypassCache = false) {
   if (cacheKey && !bypassCache) {
@@ -105,25 +105,27 @@ async function apiFetch(url, cacheKey = null, ttl = 0, bypassCache = false) {
   }
 
   const attempt = async (targetUrl) => {
-    if (bypassCache) {
-      targetUrl += (targetUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
-    }
     const res = await fetch(targetUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status} — ${targetUrl}`);
     return res.json();
   };
 
+  let reqUrl = url;
+  if (bypassCache) {
+    reqUrl += (reqUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+  }
+
   let data;
   if (CONFIG.useProxy) {
-    data = await attempt(CONFIG.PROXY_URL + encodeURIComponent(url));
+    data = await attempt(CONFIG.PROXY_URL + encodeURIComponent(reqUrl));
   } else {
     try {
-      data = await attempt(url);
+      data = await attempt(reqUrl);
     } catch (err) {
       if (err instanceof TypeError || (err.message && err.message.includes('Failed to fetch'))) {
         console.info('[Elegance] CORS detected — switching to proxy.');
         CONFIG.useProxy = true;
-        data = await attempt(CONFIG.PROXY_URL + encodeURIComponent(url));
+        data = await attempt(CONFIG.PROXY_URL + encodeURIComponent(reqUrl));
       } else {
         throw err;
       }
@@ -131,6 +133,34 @@ async function apiFetch(url, cacheKey = null, ttl = 0, bypassCache = false) {
   }
 
   if (cacheKey && ttl) cache.set(cacheKey, data, ttl);
+  return data;
+}
+
+// Shared in-memory cache for live member data to avoid duplicate fetches across widgets
+let _membersDataCache = null;
+let _membersDataTime = 0;
+
+/**
+ * Shared fetcher for club members: allows member counter, new joiners & pulse
+ * to share fresh member data in real time without redundant API calls.
+ */
+async function getClubMembers(bypassCache = false) {
+  if (!bypassCache && _membersDataCache && Date.now() - _membersDataTime < CONFIG.TTL.MEMBERS) {
+    return _membersDataCache;
+  }
+  // Debounce successive network requests within 2 seconds
+  if (bypassCache && _membersDataCache && Date.now() - _membersDataTime < 2000) {
+    return _membersDataCache;
+  }
+
+  const data = await apiFetch(
+    `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
+    'club:members',
+    CONFIG.TTL.MEMBERS,
+    bypassCache
+  );
+  _membersDataCache = data;
+  _membersDataTime = Date.now();
   return data;
 }
 
@@ -642,6 +672,16 @@ function initInviteQuoteSlider() {
 // ═══════════════════════════════════════════════════════════════════
 //  SECTION 1 — CLUB HEADER
 // ═══════════════════════════════════════════════════════════════════
+let _currentMemberCount = null;
+
+function updateHeaderMemberCount(count) {
+  if (count == null) return;
+  const subLink = document.querySelector('#club-sub .member-sub-link');
+  if (subLink) {
+    subLink.textContent = `${Number(count).toLocaleString()} Dreamers`;
+  }
+}
+
 async function loadHeader(bypassCache = false) {
   const iconEl     = document.getElementById('club-icon');
   const fallbackEl = document.getElementById('club-icon-fallback');
@@ -675,7 +715,10 @@ async function loadHeader(bypassCache = false) {
     nameEl.textContent = (data && data.name) || '夢 • Yume';
   }
 
-  const count = (data && data.members_count != null) ? Number(data.members_count).toLocaleString() : '–';
+  const rawCount = (_currentMemberCount != null)
+    ? _currentMemberCount
+    : (data && data.members_count != null ? data.members_count : null);
+  const count = (rawCount != null) ? Number(rawCount).toLocaleString() : '–';
   const year  = (data && data.created) ? extractYear(data.created) : '2024';
   subEl.innerHTML = `
     <a href="#section-members" class="gold member-sub-link" title="Jump to Club Member Counter">${escHtml(count !== '–' ? count + ' Dreamers' : 'Club')}</a>
@@ -709,11 +752,16 @@ async function loadHeader(bypassCache = false) {
 // ═══════════════════════════════════════════════════════════════════
 
 /**
- * Smooth cubic ease-out number counter animation
+ * Smooth cubic ease-out number counter animation from start to target
  */
-function animateCountUp(element, target, duration = 1200) {
-  if (!element || target == null || isNaN(target)) return;
-  const start = 0;
+function animateCountUp(element, startVal = 0, targetVal, duration = 1000) {
+  if (!element || targetVal == null || isNaN(targetVal)) return;
+  const start = isNaN(startVal) ? 0 : Number(startVal);
+  const target = Number(targetVal);
+  if (start === target) {
+    element.textContent = target.toLocaleString();
+    return;
+  }
   const startTime = performance.now();
 
   function step(now) {
@@ -721,7 +769,7 @@ function animateCountUp(element, target, duration = 1200) {
     const progress = Math.min(elapsed / duration, 1);
     // Cubic ease-out
     const ease = 1 - Math.pow(1 - progress, 3);
-    const val = Math.floor(start + (target - start) * ease);
+    const val = Math.round(start + (target - start) * ease);
     element.textContent = val.toLocaleString();
     if (progress < 1) {
       requestAnimationFrame(step);
@@ -777,10 +825,10 @@ async function loadMemberCounter(isAutoRefresh = false, bypassCache = false) {
   }
 
   try {
-    // Parallel fetch cached club profile & club members
-    const [profile, membersData] = await Promise.all([
+    // Parallel fetch real-time club members and club profile
+    const [membersData, profile] = await Promise.all([
+      getClubMembers(bypassCache).catch(() => null),
       apiFetch(`${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}`, 'club:profile', CONFIG.TTL.CLUB, bypassCache).catch(() => null),
-      apiFetch(`${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`, 'club:members', CONFIG.TTL.MEMBERS, bypassCache).catch(() => null),
     ]);
 
     const weeklyMembers  = (membersData && membersData.weekly)  || [];
@@ -788,8 +836,30 @@ async function loadMemberCounter(isAutoRefresh = false, bypassCache = false) {
     const allTimeMembers = (membersData && membersData.all_time) || [];
     const adminList      = (profile && Array.isArray(profile.admin)) ? profile.admin : [];
 
-    const computedRoster = weeklyMembers.length + monthlyMembers.length + allTimeMembers.length;
-    const totalCount = (profile && profile.members_count != null) ? Number(profile.members_count) : (computedRoster || 42);
+    // Deduplicate unique members across all three activity tiers to get real-time roster count
+    const uniqueUsernames = new Set();
+    [...weeklyMembers, ...monthlyMembers, ...allTimeMembers].forEach((m) => {
+      if (m && m.username) uniqueUsernames.add(m.username.toLowerCase());
+    });
+    const liveRosterCount = uniqueUsernames.size;
+
+    // The /members endpoint is updated immediately when members join or leave.
+    // The profile.members_count is cached by Chess.com up to 12-24 hours.
+    // Prioritize the live roster count as the real-time source of truth.
+    let totalCount;
+    if (liveRosterCount > 0) {
+      if (!profile || profile.members_count == null || liveRosterCount >= Number(profile.members_count) || (Number(profile.members_count) - liveRosterCount <= 10)) {
+        totalCount = liveRosterCount;
+      } else {
+        totalCount = Number(profile.members_count);
+      }
+    } else {
+      totalCount = (profile && profile.members_count != null) ? Number(profile.members_count) : 43;
+    }
+
+    const prevCount = _currentMemberCount;
+    _currentMemberCount = totalCount;
+
     const weeklyCount = weeklyMembers.length;
     const monthlyCount = monthlyMembers.length;
     const adminsCount = adminList.length;
@@ -799,9 +869,20 @@ async function loadMemberCounter(isAutoRefresh = false, bypassCache = false) {
     const progressPercent = Math.min(100, Math.max(0, Math.round((totalCount / nextMilestone) * 100)));
     const needed = Math.max(0, nextMilestone - totalCount);
 
-    // Animate hero counter number (smooth count-up)
-    if (!isAutoRefresh || totalEl.textContent === '--') {
-      animateCountUp(totalEl, totalCount, 1200);
+    // Keep header member counter in sync with real-time value
+    updateHeaderMemberCount(totalCount);
+
+    // Animate hero counter number
+    const isInitialRender = (prevCount === null || totalEl.textContent === '--');
+    if (isInitialRender) {
+      animateCountUp(totalEl, 0, totalCount, 1200);
+    } else if (prevCount !== totalCount) {
+      // Real-time update detected: animate from previous count and trigger highlight pulse
+      animateCountUp(totalEl, prevCount, totalCount, 600);
+      totalEl.classList.remove('count-updated-pulse');
+      void totalEl.offsetWidth;
+      totalEl.classList.add('count-updated-pulse');
+      setTimeout(() => totalEl.classList.remove('count-updated-pulse'), 1500);
     } else {
       totalEl.textContent = totalCount.toLocaleString();
     }
@@ -831,7 +912,7 @@ async function loadMemberCounter(isAutoRefresh = false, bypassCache = false) {
   } catch (err) {
     console.warn('[Elegance] Could not load member counter:', err.message);
     if (totalEl && totalEl.textContent === '--') {
-      totalEl.textContent = '42';
+      totalEl.textContent = '43';
     }
   }
 }
@@ -846,12 +927,7 @@ async function loadJoiners(isAutoRefresh = false, bypassCache = false) {
   }
 
   try {
-    const membersData = await apiFetch(
-      `${CONFIG.API_BASE}/club/${CONFIG.CLUB_ID}/members`,
-      'club:members',
-      CONFIG.TTL.MEMBERS,
-      bypassCache
-    );
+    const membersData = await getClubMembers(bypassCache);
 
     const seen = new Set();
     const combined = [
@@ -1278,11 +1354,13 @@ async function loadActivePulse(bypassCache = false) {
   const textNode  = document.getElementById('pulse-text');
   if (!pulseNode || !textNode) return;
   try {
-    const activeProfiles = await getActiveProfiles(bypassCache);
-    const top5 = activeProfiles.slice(0, 5);
+    const membersData = await getClubMembers(bypassCache);
+    const weekly = (membersData && membersData.weekly) || [];
+    const top5 = weekly.slice(0, 5);
     
     let isLive = false;
     for (const p of top5) {
+      if (!p || !p.username) continue;
       await sleep(CONFIG.ENRICH_DELAY_MS);
       try {
         const res = await apiFetch(`${CONFIG.API_BASE}/player/${p.username}/is-online`);
@@ -1669,7 +1747,9 @@ async function triggerManualRefresh() {
   const el = document.getElementById('footer-refresh');
   if (el) el.innerHTML = `↻ Syncing live data…`;
   
-  // Clear local cache keys to force fresh API payload
+  // Clear local and memory cache keys to force fresh API payload
+  _membersDataCache = null;
+  _membersDataTime = 0;
   _activeProfilesCache = null;
   _activeProfilesTime = 0;
   try { 
@@ -1680,7 +1760,7 @@ async function triggerManualRefresh() {
   
   await Promise.allSettled([
     loadHeader(true),
-    loadMemberCounter(false, true),
+    loadMemberCounter(true, true),
     loadActivePulse(true),
     loadJoiners(true, true),
     loadEliteRoster(true),
@@ -2010,14 +2090,14 @@ async function init() {
   }
 
   try {
-    await loadHeader();
+    await loadHeader(true);
   } catch (e) {
     console.error('[Elegance] Header failed:', e);
   }
 
   await Promise.allSettled([
-    loadMemberCounter(),
-    loadActivePulse(),
+    loadMemberCounter(false, true),
+    loadActivePulse(false),
     loadJoiners(false, true),
     loadPlayerOfMonth(),
     loadGameOfWeek(),
@@ -2029,25 +2109,33 @@ async function init() {
 
   updateFooter();
 
-  // Auto-refresh Joiners & Live Pulse every 30 seconds
+  // Fast real-time sync for member counter, new joiners & live pulse every 20 seconds
   setInterval(async () => {
     await Promise.allSettled([
-      loadActivePulse(true),
+      loadMemberCounter(true, true),
       loadJoiners(true, true),
+      loadActivePulse(false),
     ]);
-  }, 30 * 1000);
+  }, 20 * 1000);
 
-  // Auto-refresh Header, Member Counter, Roster, Hall of Fame & Matches every 60 seconds
+  // Periodic refresh for header, roster, hall of fame, and matches every 60 seconds
   setInterval(async () => {
     try { await loadHeader(true); } catch (e) {}
     await Promise.allSettled([
-      loadMemberCounter(true, true),
       loadEliteRoster(true),
       loadHallOfFame(true),
       loadMatches(true),
     ]);
     updateFooter();
   }, 60 * 1000);
+
+  // Immediate sync when tab becomes visible again
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      loadMemberCounter(true, true);
+      loadJoiners(true, true);
+    }
+  });
 }
 
 if (document.readyState === 'loading') {
